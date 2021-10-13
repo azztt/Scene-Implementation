@@ -7,10 +7,10 @@ class ColorLight(Light):
                 color: Tuple[int, int, int] = (255, 255, 255),
                 brightness_levels: int = 5) -> None:
         super().__init__(name, id, brightness_levels)
-        if self.__is_color_valid(color):
-            self.color = color
+        if is_color_valid(color):
+            self.__color = color
         else:
-            self.color = (255, 255, 255)
+            self.__color = (255, 255, 255)
     
     def __error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -26,7 +26,7 @@ class ColorLight(Light):
         """
         try:
             if is_color_valid(color):
-                self.color = color
+                self.__color = color
             else:
                 errmsg = "Invalid color"
                 raise ValueError(errmsg)
@@ -39,3 +39,9 @@ class ColorLight(Light):
             return errmsg
         else:
             return None
+    
+    def get_current_color(self) -> Tuple[int, int, int]:
+        """
+        Returns the current color of the light
+        """
+        return self.__color

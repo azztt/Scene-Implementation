@@ -1,10 +1,11 @@
 from base_classes import Device
+from utilities import PowerStatus
 
 class Fan(Device):
     def __init__(self, name: str, id: int, speed_levels: int = 5) -> None:
         super().__init__(name, id)
-        self.speed_levels = speed_levels
-        self.current_speed_level = 1
+        self.__speed_levels = speed_levels
+        self.__current_speed_level = 1
     
     def __error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -20,8 +21,12 @@ class Fan(Device):
         Returns `None` on success, else an error message.
         """
         try:
-            if level <= self.speed_levels and level >0:
-                self.current_speed_level = level
+            if level <= self.__speed_levels and level >0:
+                if self.get_power_status() == PowerStatus.OFF:
+                    err = self.power_on()
+                    if err:
+                        raise RuntimeError(err)
+                self.__current_speed_level = level
             else:
                 errmsg = "Speed level beyond limit"
                 raise ValueError(errmsg)
@@ -34,3 +39,9 @@ class Fan(Device):
             return errmsg
         else:
             return None
+    
+    def get_speed_level(self) -> int:
+        """
+        Returns the current speed level of the fan
+        """
+        return self.__current_speed_level
