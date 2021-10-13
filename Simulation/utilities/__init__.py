@@ -1,1 +1,1 @@
-from utils import PowerStatus
+from utils import PowerStatus, is_color_valid

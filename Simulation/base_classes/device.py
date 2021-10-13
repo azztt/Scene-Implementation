@@ -1,11 +1,21 @@
 from typing import Type
+from base_classes import Entity, Room
 from utilities import PowerStatus
 
-class Device:
+class Device(Entity):
     def __init__(self, name: str, id: int) -> None:
-        self.name = name
-        self.id = id
-        self.powerStatus = PowerStatus.OFF
+        super().__init__(name, id)
+        self.__power_status = PowerStatus.OFF
+        self.__room: Room = None
+    
+    def __error(self, errmsg: str, prefix: str = "") -> None:
+        """
+        Prints/logs error message
+        """
+        print("{}Device {} in Room {}: {}".format(
+            prefix, self.name, 
+            self.__room.get_name(), errmsg
+        ))
     
     def power_on(self) -> str:
         """
@@ -14,11 +24,13 @@ class Device:
         else returns error message,
         """
         try:
-            self.powerStatus = PowerStatus.ON
+            if not self.__room:
+                errmsg = "Device not in any room. First add this device to a room."
+                return errmsg
+            self.__power_status = PowerStatus.ON
         except RuntimeError as err:
             errmsg = "Could not power on the device"
-            print("Device {}: {}".format(self.name, errmsg))
-            print(err)
+            self.__error(err)
             return errmsg
         else:
             return None
@@ -30,17 +42,44 @@ class Device:
         else returns False with the error message,
         """
         try:
-            self.powerStatus = PowerStatus.OFF
+            self.__power_status = PowerStatus.OFF
         except RuntimeError as err:
             errmsg = "Could not power off the device"
-            print("{}: {}".format(self.name, errmsg))
-            print(err)
+            self.__error(err)
             return errmsg
         else:
             return None
+    
+    def place_in_room(self, room: Room) -> str:
+        """
+        Places this device in the room `room`.\n
+        One device instance can be placed in ONLY one room.\n
+        Returns None on success else an error message
+        """
+        try:
+            self.__room = room
+        except RuntimeError as err:
+            errmsg = "Could not place in room"
+            self.__error(err)
+            return errmsg
+    
+    def remove_from_room(self) -> str:
+        """
+        Removes this device from the current room.\n
+        The device is powered off before removing.
+        """
+        try:
+            err = self.power_off()
+            if err:
+                raise RuntimeError(err)
+            self.__room = None
+        except RuntimeError as err:
+            errmsg = "Could not remove from room"
+            self.__error(err)
+            return errmsg
 
-    def getPowerStatus(self) -> Type[PowerStatus]:
+    def get_power_status(self) -> Type[PowerStatus]:
         """
         Returns the power status (ON or OFF) of the device.
         """
-        return self.powerStatus
+        return self.__power_status

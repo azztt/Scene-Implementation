@@ -1,10 +1,17 @@
-from _typeshed import Self
 from base_classes import Device
 
 class Fan(Device):
     def __init__(self, name: str, id: int, speed_levels: int = 5) -> None:
         super().__init__(name, id)
         self.speed_levels = speed_levels
+        self.current_speed_level = 1
+    
+    def __error(self, errmsg: str, prefix: str = "") -> None:
+        """
+        Prints/logs error message
+        """
+        prefix = prefix + "Fan->"
+        super().__error(errmsg, prefix)
     
     def set_speed_level(self, level: int) -> str:
         """
@@ -13,17 +20,17 @@ class Fan(Device):
         Returns `None` on success, else an error message.
         """
         try:
-            if level <= self.speed_levels and level >=0:
-                self.speed_levels = level
+            if level <= self.speed_levels and level >0:
+                self.current_speed_level = level
             else:
-                errmsg = "Speed level beyond limit."
+                errmsg = "Speed level beyond limit"
                 raise ValueError(errmsg)
         except ValueError as err:
-            print(err)
+            self.__error(err)
             return err
         except RuntimeError as err:
-            print(err)
-            print("Fan {}: Could not set speed level.", self.id)
-            return err
+            errmsg = "Could not set speed level"
+            self.__error(err)
+            return errmsg
         else:
             return None
