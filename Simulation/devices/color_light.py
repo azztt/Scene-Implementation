@@ -1,12 +1,13 @@
 from typing import Tuple
 from light import Light
+from utilities import DeviceType
 from utilities import is_color_valid
 
 class ColorLight(Light):
-    def __init__(self, name: str, id: int,
+    def __init__(self, name: str, id: str,
                 color: Tuple[int, int, int] = (255, 255, 255),
                 brightness_levels: int = 5) -> None:
-        super().__init__(name, id, brightness_levels)
+        super().__init__(name, id, brightness_levels, DeviceType.COL_LIGHT)
         if is_color_valid(color):
             self.__color = color
         else:

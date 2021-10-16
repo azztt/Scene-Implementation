@@ -1,9 +1,9 @@
 from base_classes import Device
-from utilities import PowerStatus
+from utilities import PowerStatus, DeviceType
 
 class Fan(Device):
-    def __init__(self, name: str, id: int, speed_levels: int = 5) -> None:
-        super().__init__(name, id)
+    def __init__(self, name: str, id: str, speed_levels: int = 5) -> None:
+        super().__init__(name, id, DeviceType.FAN)
         self.__speed_levels = speed_levels
         self.__current_speed_level = 1
     

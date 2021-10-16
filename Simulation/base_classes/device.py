@@ -1,19 +1,21 @@
-from typing import Type
+from enum import Enum
+from typing import Literal
 from base_classes import Entity, Room
 from utilities import PowerStatus
 
 class Device(Entity):
-    def __init__(self, name: str, id: int) -> None:
+    def __init__(self, name: str, id: str, type: Literal = None) -> None:
         super().__init__(name, id)
         self.__power_status = PowerStatus.OFF
         self.__room: Room = None
+        self.__type = type
     
     def __error(self, errmsg: str, prefix: str = "") -> None:
         """
         Prints/logs error message
         """
         print("{}Device {} in Room {}: {}".format(
-            prefix, self.name, 
+            prefix, self.get_name(), 
             self.__room.get_name(), errmsg
         ))
     
@@ -66,7 +68,8 @@ class Device(Entity):
     def remove_from_room(self) -> str:
         """
         Removes this device from the current room.\n
-        The device is powered off before removing.
+        The device is powered off before removing.\n
+        Returns `None` on success else an error message.
         """
         try:
             err = self.power_off()
@@ -77,9 +80,23 @@ class Device(Entity):
             errmsg = "Could not remove from room"
             self.__error(err)
             return errmsg
+        else:
+            return None
 
-    def get_power_status(self) -> Type[PowerStatus]:
+    def get_power_status(self) -> Literal:
         """
         Returns the power status (ON or OFF) of the device.
         """
         return self.__power_status
+    
+    def get_room(self) -> Room:
+        """
+        Returns the room object in which this device is present.
+        """
+        return self.__room
+    
+    def get_device_type(self) -> Literal:
+        """
+        Returns the type of this device
+        """
+        return self.__type

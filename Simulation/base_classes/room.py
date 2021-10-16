@@ -1,10 +1,12 @@
-from typing import List
-from device import Entity, Device
+from typing import List, Literal
+from controller import Controller
+from entity import Entity
+from device import Device
 
 class Room(Entity):
-    def __init__(self, name: str, id: int, devices: List[Device] = []) -> None:
+    def __init__(self, name: str, id: str) -> None:
         super().__init__(name, id)
-        self.__devices = devices
+        self.__controllers: List[Controller] = []
     
     def __error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -12,48 +14,99 @@ class Room(Entity):
         """
         print("{}Room {}: {}".format(prefix, self.name, errmsg))
     
-    def add_device(self, device: Device) -> str:
+    def add_controller(self, controller: Controller) -> str:
         """
-        Adds a new device to the list of devices of the room.\n
-        Returns None on success, else error message.
+        Adds the `controller` to this room's list\n
+        of controllers. Returns `None` on success, else\n
+        returns the error message
         """
         try:
+            err = controller.place_in_room(self)
+            if err:
+                raise RuntimeError(err)
+            self.__controllers.append(controller)
+        except RuntimeError as err:
+            errmsg = "Could not add controller to the room"
+            self.__error(err)
+            return errmsg
+        else:
+            return None
+    
+    def remove_controller(self, controller: Controller) -> str:
+        """
+        Removes the `controller` from this room's list\n
+        of controllers. The controller is stopped and all devices\n
+        for that controller must be removed before\n
+        stopping. Returns `None` on success, else\n
+        returns the error message
+        """
+        try:
+            err = controller.remove_from_room(self)
+            if err:
+                raise RuntimeError(err)
+            self.__controllers.append(controller)
+        except RuntimeError as err:
+            errmsg = "Could not add controller to the room"
+            self.__error(err)
+            return errmsg
+        else:
+            return None
+    
+    def __get_device_controller(self, type: Literal) -> Controller:
+        """
+        Checks and returns the controller of device type `type`\n
+        is present in the room, else returns None.
+        """
+        for controller in self.__controllers:
+            if controller.get_device_type() == type:
+                return controller
+        
+        return None
+
+    def add_device(self, device: Device) -> str:
+        """
+        Adds a new device to the room's relevant controller.\n
+        Returns `None` on success, else error message.
+        """
+        try:
+            controller = self.__get_device_controller(device.get_device_type())
+            if not controller:
+                err = "No controller of this type present. "
+                err += "First, add a controller of this type to the room."
+                raise RuntimeError(err)
             err = device.place_in_room(self)
             if err:
                 raise RuntimeError(err)
-            self.__devices.append(device)
+            controller.add_device(device)
         except RuntimeError as err:
+            if err[:13] == "No controller":
+                return err
             errmsg = "Could not add device to the room"
             self.__error(err)
             return errmsg
         else:
             return None
     
-    def remove_device_by_id(self, device_id: int) -> str:
+    def remove_device_by_id_type(self, device_id: str, type: Literal) -> str:
         """
-        Removes the device with given id from the list of devices of the room.\n
-        Returns None on success, else error message.
+        Removes the device with given id and type from the\n
+        relevant controller of the room.\n
+        Returns `None` on success, else error message.
         """
         try:
-            ind = 0
-            for device in self.__devices:
-                if device.get_id() == device_id:
-                    break
-                ind += 1
-            if ind == len(self.__devices):
-                errmsg = "Device with id {} not found.".format(device_id)
-                raise ValueError(errmsg)
-            
-            err = self.__devices[ind].remove_from_room()
+            controller = self.__get_device_controller(type)
+            if not controller:
+                err = "No controller of this type present."
+                raise RuntimeError(err)
+            err = controller.remove_device_by_id(device_id)
             if err:
                 raise RuntimeError(err)
-            self.__devices.remove(self.__devices[ind])
         except ValueError as err:
             self.__error(err)
             return err
         except RuntimeError as err:
-            errmsg = "Could not remove device '{}'".format(
-                device.get_name()
+            errmsg = "Could not remove device with id '{}'".format(
+                device_id
             )
             self.__error(err)
             return errmsg
@@ -62,9 +115,9 @@ class Room(Entity):
     
     def empty_room(self) -> str:
         """
-        Removes all the devices from the room. All\n
-        devices are powered off before removing.\n
-        Returns None on success, else an error message.
+        Removes all the devices and hence controllers from the room.\n
+        All controllers are stopped before removing.\n
+        Returns `None` on success, else an error message.
         """
         try:
             for device in self.__devices:

@@ -1,10 +1,11 @@
-from typing import Tuple
-from Simulation.utilities.utils import PowerStatus
+from typing import Literal, Tuple
+from utilities import PowerStatus, DeviceType
 from base_classes import Device
 
 class Light(Device):
-    def __init__(self, name: str, id: int, brightness_levels: int = 5) -> None:
-        super().__init__(name, id)
+    def __init__(self, name: str, id: str, brightness_levels: int = 5,
+                type: Literal = None) -> None:
+        super().__init__(name, id, type if type else DeviceType.LIGHT)
         self.__brightness_levels = brightness_levels
         self.__current_brightness = 0
     

@@ -4,7 +4,7 @@ class Entity:
     Once instantiated, only `name` can be changed.\n
     `id` of the cannot be changed.
     """
-    def __init__(self, name: str, id: int) -> None:
+    def __init__(self, name: str, id: str) -> None:
         self.__name = name if len(name) <= 100 else name[:100]
         self.__id = id
     
@@ -20,5 +20,5 @@ class Entity:
         """
         self.__name = name
     
-    def get_id(self) -> int:
+    def get_id(self) -> str:
         return self.__id
