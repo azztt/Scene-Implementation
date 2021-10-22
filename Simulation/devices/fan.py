@@ -1,5 +1,8 @@
+from types import FunctionType
+from typing import Any, Dict, Literal
 from base_classes import Device
 from utilities import PowerStatus, DeviceType
+from utilities import FanOp
 
 class Fan(Device):
     def __init__(self, name: str, id: str, speed_levels: int = 5) -> None:
@@ -7,12 +10,12 @@ class Fan(Device):
         self.__speed_levels = speed_levels
         self.__current_speed_level = 1
     
-    def __error(self, errmsg: str, prefix: str = "") -> None:
+    def error(self, errmsg: str, prefix: str = "") -> None:
         """
         Prints/logs error message
         """
         prefix = prefix + "Fan->"
-        super().__error(errmsg, prefix)
+        super().error(errmsg, prefix)
     
     def set_speed_level(self, level: int) -> str:
         """
@@ -31,11 +34,11 @@ class Fan(Device):
                 errmsg = "Speed level beyond limit"
                 raise ValueError(errmsg)
         except ValueError as err:
-            self.__error(err)
+            self.error(err)
             return err
         except RuntimeError as err:
             errmsg = "Could not set speed level"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -45,3 +48,10 @@ class Fan(Device):
         Returns the current speed level of the fan
         """
         return self.__current_speed_level
+    
+    def get_status_string(self) -> Dict[str, Any]:
+        status = {
+            "id": self.get_id(),
+            "speed": self.__current_speed_level
+        }
+        return status

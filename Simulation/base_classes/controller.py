@@ -1,6 +1,9 @@
-from typing import List, Literal
-from device import Device
-from room import Room
+from __future__ import annotations
+from typing import Any, Dict, List, Literal, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .room import Room
+from .device import Device
+from utilities import PowerStatus, OPStatus
 
 class Controller(Device):
     def __init__(self, name: str, id: str, type: Literal) -> None:
@@ -8,7 +11,7 @@ class Controller(Device):
         self.__room: Room = None
         self.__devices: List[Device] = []
     
-    def __error(self, errmsg: str, prefix) -> None:
+    def error(self, errmsg: str, prefix) -> None:
         """
         Prints/logs error message
         """
@@ -19,6 +22,14 @@ class Controller(Device):
             errmsg
         ))
     
+    def new_device_ack(self) -> str:
+        """
+        Method to send an update for new device addition to the\n
+        server to maintain a list of those devices on server side.\n
+        Returns `None` on success, else an error message.
+        """
+        pass
+    
     def add_device(self, device: Device) -> str:
         """
         Adds a new device to this controller's device list.\n
@@ -28,7 +39,7 @@ class Controller(Device):
             self.__devices.append(device)
         except RuntimeError as err:
             errmsg = "Could not add device to the controller"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -55,7 +66,7 @@ class Controller(Device):
                 raise ValueError(errmsg)
         except RuntimeError as err:
             errmsg = "Could not remove device"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -71,7 +82,7 @@ class Controller(Device):
             self.__room = room
         except RuntimeError as err:
             errmsg = "Could not add controller to room"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -97,7 +108,7 @@ class Controller(Device):
             self.__room = None
         except RuntimeError as err:
             errmsg = "Could not remove from room"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -124,3 +135,65 @@ class Controller(Device):
         this controller is present
         """
         return self.__room.get_id()
+    
+    def get_device_by_id(self, device_id: str) -> Device:
+        """
+        Finds and returns the device object with given id\n
+        `device_id` from the list of devices. Returns the\n
+        device object if found, else returns `None`
+        """
+        try:
+            for device in self.__devices:
+                if device.get_id() == device_id:
+                    return device
+            err = "Device not found"
+            raise ValueError(err)
+        except ValueError as err:
+            self.error(err)
+            return None
+        except RuntimeError as err:
+            self.error(err)
+            return None
+    
+    def get_all_device_ids(self) -> str:
+        """
+        Returns the ids of all devices of this controller\n
+        concatenated with a comma separator.
+        """
+        device_ids = [device.get_id() for device in self.__devices]
+        return ",".join(device_ids)
+    
+    def set_device_power(self, device_id: str, state: Literal) -> Literal:
+        """
+        Sets the power status of the device with id\n
+        `device_id`. Returns corresponding operation status.
+        """
+        try:
+            device: Device = self.get_device_by_id(device_id)
+            if device:
+                err = None
+                if state == PowerStatus.OFF:
+                    err = device.power_off()
+                elif state == PowerStatus.ON:
+                    err = device.power_on()
+                
+                if err:
+                    return OPStatus.FAILED
+            else:
+                return OPStatus.FAILED
+        except RuntimeError as err:
+            self.error(err)
+            return OPStatus.FAILED
+        else:
+            return OPStatus.SUCCESS
+    
+    def get_all_device_status(self) -> List[Dict[str, Any]]:
+        """
+        Returns the list of all status dictionaries of the devices of this controller.
+        """
+        statuses: List[Dict[str, Any]] = []
+
+        for device in self.__devices:
+            statuses.append(device.get_status_string)
+        
+        return statuses

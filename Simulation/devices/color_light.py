@@ -1,5 +1,5 @@
-from typing import Tuple
-from light import Light
+from typing import Any, Dict, Tuple
+from .light import Light
 from utilities import DeviceType
 from utilities import is_color_valid
 
@@ -13,12 +13,12 @@ class ColorLight(Light):
         else:
             self.__color = (255, 255, 255)
     
-    def __error(self, errmsg: str, prefix: str = "") -> None:
+    def error(self, errmsg: str, prefix: str = "") -> None:
         """
         Prints/logs error message
         """
         prefix = prefix + "ColorLight->"
-        super().__error(errmsg, prefix)
+        super().error(errmsg, prefix)
     
     def set_color(self, color: Tuple[int, int, int]) -> str:
         """
@@ -32,11 +32,11 @@ class ColorLight(Light):
                 errmsg = "Invalid color"
                 raise ValueError(errmsg)
         except ValueError as err:
-            self.__error(err)
+            self.error(err)
             return err
         except RuntimeError as err:
             errmsg = "Could not set color due to an unexpected error."
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -46,3 +46,15 @@ class ColorLight(Light):
         Returns the current color of the light
         """
         return self.__color
+
+    def get_status_string(self) -> Dict[str, Any]:
+        status = {
+            "id": self.get_id(),
+            "brightness": self.get_current_brightness(),
+            "color": "({},{},{})".format(
+                self.__color[0],
+                self.__color[1],
+                self.__color[2]
+            )
+        }
+        return status

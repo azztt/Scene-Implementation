@@ -1,14 +1,17 @@
-from typing import List, Literal
-from controller import Controller
-from entity import Entity
-from device import Device
+from __future__ import annotations
+from typing import List, Literal, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .controller import Controller
+    from .device import Device
+from utilities import Error
+from .entity import Entity
 
 class Room(Entity):
     def __init__(self, name: str, id: str) -> None:
         super().__init__(name, id)
         self.__controllers: List[Controller] = []
     
-    def __error(self, errmsg: str, prefix: str = "") -> None:
+    def error(self, errmsg: str, prefix: str = "") -> None:
         """
         Prints/logs error message
         """
@@ -27,7 +30,7 @@ class Room(Entity):
             self.__controllers.append(controller)
         except RuntimeError as err:
             errmsg = "Could not add controller to the room"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -47,7 +50,7 @@ class Room(Entity):
             self.__controllers.append(controller)
         except RuntimeError as err:
             errmsg = "Could not add controller to the room"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -80,9 +83,9 @@ class Room(Entity):
             controller.add_device(device)
         except RuntimeError as err:
             if err[:13] == "No controller":
-                return err
+                return Error.NO_CONT.value
             errmsg = "Could not add device to the room"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -102,13 +105,13 @@ class Room(Entity):
             if err:
                 raise RuntimeError(err)
         except ValueError as err:
-            self.__error(err)
+            self.error(err)
             return err
         except RuntimeError as err:
             errmsg = "Could not remove device with id '{}'".format(
                 device_id
             )
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -120,15 +123,15 @@ class Room(Entity):
         Returns `None` on success, else an error message.
         """
         try:
-            for device in self.__devices:
-                err = device.remove_from_room()
+            for controller in self.__controllers:
+                err = controller.remove_from_room()
                 if err:
                     raise RuntimeError(err)
             
-            self.__devices = []
+            self.__controllers = []
         except RuntimeError as err:
             errmsg = "Could not remove all devices from the room."
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None

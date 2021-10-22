@@ -1,16 +1,20 @@
+from __future__ import annotations
 from enum import Enum
-from typing import Literal
-from base_classes import Entity, Room
+from types import FunctionType
+from typing import Any, Dict, Literal, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .room import Room
 from utilities import PowerStatus
+from .entity import Entity
 
 class Device(Entity):
     def __init__(self, name: str, id: str, type: Literal = None) -> None:
         super().__init__(name, id)
         self.__power_status = PowerStatus.OFF
         self.__room: Room = None
-        self.__type = type
+        self.__type: Literal = type
     
-    def __error(self, errmsg: str, prefix: str = "") -> None:
+    def error(self, errmsg: str, prefix: str = "") -> None:
         """
         Prints/logs error message
         """
@@ -32,7 +36,7 @@ class Device(Entity):
             self.__power_status = PowerStatus.ON
         except RuntimeError as err:
             errmsg = "Could not power on the device"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -47,7 +51,7 @@ class Device(Entity):
             self.__power_status = PowerStatus.OFF
         except RuntimeError as err:
             errmsg = "Could not power off the device"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -62,7 +66,7 @@ class Device(Entity):
             self.__room = room
         except RuntimeError as err:
             errmsg = "Could not place in room"
-            self.__error(err)
+            self.error(err)
             return errmsg
     
     def remove_from_room(self) -> str:
@@ -78,7 +82,7 @@ class Device(Entity):
             self.__room = None
         except RuntimeError as err:
             errmsg = "Could not remove from room"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -100,3 +104,10 @@ class Device(Entity):
         Returns the type of this device
         """
         return self.__type
+    
+    def get_status_string(self) -> Dict[str, Any]:
+        """
+        Returns the status of all attributes of the device\n
+        as a dictionary with the attributes as key strings.
+        """
+        pass

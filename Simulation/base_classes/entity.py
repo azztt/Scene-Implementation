@@ -1,4 +1,4 @@
-class Entity:
+class Entity():
     """
     Most basic entity with a name and id.\n
     Once instantiated, only `name` can be changed.\n

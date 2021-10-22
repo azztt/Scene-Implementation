@@ -1,4 +1,4 @@
-from typing import Literal, Tuple
+from typing import Any, Dict, Literal
 from utilities import PowerStatus, DeviceType
 from base_classes import Device
 
@@ -9,12 +9,12 @@ class Light(Device):
         self.__brightness_levels = brightness_levels
         self.__current_brightness = 0
     
-    def __error(self, errmsg: str, prefix: str = "") -> None:
+    def error(self, errmsg: str, prefix: str = "") -> None:
         """
         Prints/logs error message
         """
         prefix = prefix + "Light->"
-        super().__error(errmsg, prefix)
+        super().error(errmsg, prefix)
     
     def set_brightness(self, brightness: int) -> str:
         """
@@ -33,11 +33,11 @@ class Light(Device):
                 errmsg = "Brightness level beyond limit."
                 raise ValueError(errmsg)
         except ValueError as err:
-            self.__error(err)
+            self.error(err)
             return err
         except RuntimeError as err:
             errmsg = "Could not set brightness level"
-            self.__error(err)
+            self.error(err)
             return errmsg
         else:
             return None
@@ -47,3 +47,10 @@ class Light(Device):
         Returns the current brightness level of the light
         """
         return self.__current_brightness
+    
+    def get_status_string(self) -> Dict[str, Any]:
+        status = {
+            "id": self.get_id(),
+            "brightness": self.get_current_brightness()
+        }
+        return status

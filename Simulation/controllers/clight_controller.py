@@ -1,6 +1,6 @@
-from typing import Any, Literal
-from utilities import FanOp
-from devices import Fan
+from typing import Any, Literal, Tuple
+from utilities import CLightOp
+from devices import ColorLight
 from base_classes import Controller
 from utilities import DeviceType, OPStatus, PowerStatus
 from utilities import get_mqtt_com_topic
@@ -9,35 +9,35 @@ from utilities import get_mqtt_sub_topic, get_mqtt_unsub_topic
 from utilities import MQTTConnection, StatusThread
 import paho.mqtt.client as mqtt
 
-class FanController(Controller):
+class ColorLightController(Controller):
     def __init__(self, name: str, id: str) -> None:
-        super().__init__(name, id, DeviceType.FAN)
+        super().__init__(name, id, DeviceType.COL_LIGHT)
         self.__running = False
         self.__client: MQTTConnection = None
         self.__status_thread: StatusThread = None
     
-    def error(self, errmsg: str, fan: Fan = None) -> None:
+    def error(self, errmsg: str, clight: ColorLight = None) -> None:
         """
         Prints/logs error message
         """
         prefix = ""
-        if fan:
-            prefix = "FanController for fan {}->".format(
-                fan.get_name()
+        if clight:
+            prefix = "ColorLightController for color light {}->".format(
+                clight.get_name()
             )
         else:
-            prefix = "FanController->"
+            prefix = "ColorLightController->"
         super().error(errmsg, prefix)
 
-    def set_speed(self, fan_id: str, level: int) -> Literal:
+    def set_color(self, clight_id: str, color: Tuple[int, int , int]) -> Literal:
         """
-        Sets the speed level of the fan with device id\n
-        as `fan_id`. Returns corresponding operation status.
+        Sets the color of the color light with device id\n
+        as `clight_id`. Returns corresponding operation status.
         """
         try:
-            fan: Fan = self.get_device_by_id(fan_id)
-            if fan:
-                err = fan.set_speed_level(level)
+            clight: ColorLight = self.get_device_by_id(clight_id)
+            if clight:
+                err = clight.set_color(color)
                 if err:
                     return OPStatus.FAILED
             else:
@@ -48,6 +48,24 @@ class FanController(Controller):
         else:
             return OPStatus.SUCCESS
     
+    def set_brightness(self, light_id: str, level: int) -> Literal:
+        """
+        Sets the brightness of the light with device id\n
+        as `light_id`. Returns corresponding operation status.
+        """
+        try:
+            light: ColorLight = self.get_device_by_id(light_id)
+            if light:
+                err = light.set_brightness(level)
+                if err:
+                    return OPStatus.FAILED
+            else:
+                return OPStatus.FAILED
+        except RuntimeError as err:
+            self.error(err)
+            return OPStatus.FAILED
+        else:
+            return OPStatus.SUCCESS
     
     def __on_message(self,
                     client: mqtt.Client,
@@ -63,9 +81,17 @@ class FanController(Controller):
             status = self.set_device_power(device_id, PowerStatus.OFF)
         elif command == "ON":
             status = self.set_device_power(device_id, PowerStatus.ON)
-        elif command == FanOp.SET_SPEED.value:
+        elif command == CLightOp.SET_BRIGHT.value:
             level = int(message[2])
-            status = self.set_speed(device_id, level)
+            status = self.set_brightness(device_id, level)
+        elif command == CLightOp.SET_COLOR.value:
+            # of format '(R,G,B)'
+            color_string = message[2]
+            color_string = color_string[1:-1]
+            color_codes = color_string.split(",")
+            color = list(map(int, color_codes))
+            color = tuple(color)
+            status = self.set_color(device_id, color)
         
         if status == OPStatus.FAILED:
             client.publish(
