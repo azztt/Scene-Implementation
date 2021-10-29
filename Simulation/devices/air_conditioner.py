@@ -1,3 +1,4 @@
+from time import sleep
 from typing import Any, Dict, Literal, Tuple
 from base_classes import Device
 from utilities import ACFanSpeed, ACMode, ACSwingState, DeviceType
@@ -114,9 +115,28 @@ class AirConditioner(Device):
     def get_status_string(self) -> Dict[str, Any]:
         status = {
             "id": self.get_id(),
+            "type": "AC",
             "temperature": self.__current_temp,
-            "fan_speed": self.__fan_speed.value,
-            "swing_state": self.__swing_state.value,
+            "fanSpeed": self.__fan_speed.value,
+            "swingState": self.__swing_state.value,
             "mode": self.__mode.value
         }
         return status
+    
+    def get_param_string(self) -> str:
+        param = "tempRange:({},{})".format(self.__temp_range[0], self.__temp_range[1])
+        return param
+    
+    def set_from_param_string(self, status_string: str) -> str:
+        config_dict: Dict[str, str] = {}
+        config = status_string.split("|")
+        for con in config:
+            params = con.split(":")
+            config_dict[params[0]] = params[1]
+        try:
+            self.__current_temp = int(config_dict["temperature"])
+            self.__fan_speed = int(config_dict["fanSpeed"])
+            self.__swing_state = config_dict["swingState"]
+            self.__mode = config_dict["mode"]
+        except Exception:
+            return "Failed to set status"

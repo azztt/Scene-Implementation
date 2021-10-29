@@ -2,7 +2,7 @@ from __future__ import annotations
 from threading import Thread
 from time import sleep, time
 from types import FunctionType
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Dict, List
 from .constants import MQTT_SERVER, MQTT_QOS
 from .constants import MQTT_PORT, MQTT_WILL_TOPIC
 from .constants import STATUS_CRON_TIME
@@ -11,7 +11,7 @@ import paho.mqtt.client as mqtt
 if TYPE_CHECKING:
     from base_classes import Controller
 from time import perf_counter
-from simulation.sim_topics import DEVICE_STATUS
+from simulation.sim_constants import DEVICE_STATUS
 import json
 
 class MQTTConnection:
@@ -20,7 +20,8 @@ class MQTTConnection:
                 topic: str,
                 on_subscribe: FunctionType,
                 on_unsubscribe: FunctionType,
-                on_message: FunctionType) -> None:
+                on_message: FunctionType,
+                will_payload: str) -> None:
         self.__client_id = id
         self.__topic = topic
         self.__client = mqtt.Client(
@@ -30,6 +31,7 @@ class MQTTConnection:
         self.__on_unsubscribe = on_unsubscribe
         self.__on_subscribe = on_subscribe
         self.__on_message = on_message
+        self.__will_payload = will_payload
     
     def __on_connect(self,
                 client: mqtt.Client,
@@ -79,7 +81,7 @@ class MQTTConnection:
             self.__client.on_unsubscribe = self.__on_unsubscribe
             self.__client.will_set(
                 topic=MQTT_WILL_TOPIC,
-                payload=self.__client_id,
+                payload=self.__will_payload,
             )
             self.__client.connect(
                 host=MQTT_SERVER,
@@ -141,11 +143,11 @@ class StatusThread(Thread):
         while(self.__on):
             t1 = perf_counter()
 
-            statuses = self.__controller.get_all_device_status()
+            statuses: List[Dict[str, Any]] = self.__controller.get_all_device_status()
 
             for status in statuses:
                 self.__client.publish(
-                    topic=DEVICE_STATUS,
+                    topic="/".join([DEVICE_STATUS, status["type"]]),
                     payload=json.dumps(status),
                     qos=1
                 )

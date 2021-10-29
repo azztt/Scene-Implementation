@@ -136,11 +136,18 @@
 # print("fan 1: {}".format(fan1.get_name()))
 # print("fan 2: {}".format(fan2.get_name()))
 
-z = ["x", "r"]
+# z = ["x", "r"]
 
-def m():
-    global z
-    z = ["a", "b", "c"]
+# def m():
+#     global z
+#     z = ["a", "b", "c"]
 
-m()
-print(z)
+# m()
+# print(z)
+
+# import uuid
+
+# print(str(uuid.uuid4()))
+st = "jvkwkljacv)"
+
+print(st[:-1])

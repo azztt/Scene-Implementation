@@ -7,7 +7,7 @@
 from typing import Any, Dict, Tuple
 
 # importing os utilities
-# import 
+import json 
 
 # importing all devices
 from devices import AirConditioner
@@ -148,7 +148,10 @@ def new_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> N
     sim_acknowledge(
         client=client,
         topic=NEW_ROOM,
-        status=utils.OPStatus.SUCCESS.value
+        status=json.dumps({
+            "id": new_room_id,
+            "name": room_name
+        })
     )
 
 # callback for removing room
@@ -167,7 +170,7 @@ def rem_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> N
         sim_acknowledge(
             client=client,
             topic=REM_ROOM,
-            status=utils.OPStatus.SUCCESS.value
+            status=room_id
         )
     rooms.pop(room_id, None)
 
@@ -189,6 +192,14 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
     device_type = msg["type"]
     device_name = msg["name"]
 
+    ack_device = {
+        "id": new_dev_id,
+        "name": device_name,
+        "type": device_type,
+        "parameters": "",
+        "status": {}
+    }
+
     if device_type == utils.DeviceType.AC.value:
         temp_range: str = msg["temp_range"]
         temp_range = temp_range[1:-1]
@@ -199,6 +210,10 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
             id=new_dev_id,
             temp_range=temp_range
         )
+
+        ack_device["parameters"] = new_ac.get_param_string()
+        ack_device["status"] = new_ac.get_status_string()
+
         err = room.add_device(new_ac)
         if err == utils.Error.NO_CONT.value:
             new_cont_id = id_gen.new_id()
@@ -234,19 +249,23 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
         devices[new_dev_id] = new_ac
     
     elif device_type == utils.DeviceType.COL_LIGHT.value:
-        color: str = msg["color"]
-        if color:
-            color = color[1:-1]
-            color = color.split(",")
-            color = tuple(list(map(int, color)))
+        # color: str = msg["color"]
+        # if color:
+        #     color = color[1:-1]
+        #     color = color.split(",")
+        #     color = tuple(list(map(int, color)))
         
         b_levels = int(msg["b_levels"])
         new_clight = ColorLight(
             name=device_name,
             id=new_dev_id,
-            color=color,
+            # color=color,
             brightness_levels=b_levels
         )
+        
+        ack_device["parameters"] = new_clight.get_param_string()
+        ack_device["status"] = new_clight.get_status_string()
+
         err = room.add_device(new_clight)
         if err == utils.Error.NO_CONT.value:
             new_cont_id = id_gen.new_id()
@@ -286,6 +305,10 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
             name=device_name,
             id=new_dev_id,
         )
+        
+        ack_device["parameters"] = new_dlock.get_param_string()
+        ack_device["status"] = new_dlock.get_status_string()
+
         err = room.add_device(new_dlock)
         if err == utils.Error.NO_CONT.value:
             new_cont_id = id_gen.new_id()
@@ -327,6 +350,10 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
             id=new_dev_id,
             speed_levels=speed_levels
         )
+        
+        ack_device["parameters"] = new_fan.get_param_string()
+        ack_device["status"] = new_fan.get_status_string()
+
         err = room.add_device(new_fan)
         if err == utils.Error.NO_CONT.value:
             new_cont_id = id_gen.new_id()
@@ -368,6 +395,10 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
             id=new_dev_id,
             brightness_levels=b_levels
         )
+        
+        ack_device["parameters"] = new_light.get_param_string()
+        ack_device["status"] = new_light.get_status_string()
+
         err = room.add_device(new_light)
         if err == utils.Error.NO_CONT.value:
             new_cont_id = id_gen.new_id()
@@ -405,7 +436,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
     sim_acknowledge(
         client=client,
         topic=NEW_DEVICE,
-        status=utils.OPStatus.SUCCESS.value
+        status=json.dumps(ack_device)
     )
 
 # callback for removing device
@@ -436,7 +467,7 @@ def rem_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
         sim_acknowledge(
             client=client,
             topic=NEW_DEVICE,
-            status=utils.OPStatus.SUCCESS.value
+            status=dev_id
         )
 
 start_success = False

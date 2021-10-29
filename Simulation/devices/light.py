@@ -51,6 +51,22 @@ class Light(Device):
     def get_status_string(self) -> Dict[str, Any]:
         status = {
             "id": self.get_id(),
+            "type": "LIGHT",
             "brightness": self.get_current_brightness()
         }
         return status
+    
+    def get_param_string(self) -> str:
+        param = "brightLevels:{}".format(self.__brightness_levels)
+        return param
+    
+    def set_from_param_string(self, status_string: str) -> str:
+        config_dict: Dict[str, str] = {}
+        config = status_string.split("|")
+        for con in config:
+            params = con.split(":")
+            config_dict[params[0]] = params[1]
+        try:
+            self.set_brightness(int(config_dict["brightness"]))
+        except Exception:
+            return "Failed to set status"

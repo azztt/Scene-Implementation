@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, overload
 from .light import Light
 from utilities import DeviceType
 from utilities import is_color_valid
@@ -50,6 +50,7 @@ class ColorLight(Light):
     def get_status_string(self) -> Dict[str, Any]:
         status = {
             "id": self.get_id(),
+            "type": "CLIGHT",
             "brightness": self.get_current_brightness(),
             "color": "({},{},{})".format(
                 self.__color[0],
@@ -58,3 +59,23 @@ class ColorLight(Light):
             )
         }
         return status
+    
+    def get_param_string(self) -> str:
+        param = "brightLevels:{}".format(self.__brightness_levels)
+        return param
+    
+    def set_from_param_string(self, status_string: str) -> str:
+        config_dict: Dict[str, str] = {}
+        config = status_string.split("|")
+        for con in config:
+            params = con.split(":")
+            config_dict[params[0]] = params[1]
+        try:
+            self.set_brightness(int(config_dict["brightness"]))
+            colors = config_dict["color"]
+            colors = colors[1:-1]
+            colors = colors.split(",")
+            color = (int(colors[0]), int(colors[1]), int(colors[2]))
+            self.set_color(color)
+        except Exception:
+            return "Failed to set status"
