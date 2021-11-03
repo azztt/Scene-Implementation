@@ -10,83 +10,53 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
-func SetDeviceStatusAck(client MQTT.Client, message MQTT.Message) {
+func SetDeviceStatusAck(client MQTT.Client, message MQTT.Message) error {
 	// first unsubscribe from the topic
 	client.Unsubscribe(message.Topic())
 	var status string = strings.Split(string(message.Payload()), "/")[1]
 
 	if status == "FAILED" {
-		fmt.Println("FAILED status from device command")
+		return fmt.Errorf("FAILED status from device command")
 	}
+	return nil
 }
 
-func SetScene(sceneId string) {
-	// first get scene information from database
-	var sceneInfo MODELS.Scene
+func SetScene(sceneId int64) error {
+	// first get scene configs from database
+	var sceneConfigs []MODELS.Config
 	var err error
-	sceneInfo, err = DB.GetSceneByID(sceneId)
+	done := 0
+	sceneConfigs, err = DB.GetConfigsBySceneID(sceneId)
 	if err != nil {
 		fmt.Println("Could not fetch scene data. Aborting")
-		/*
-			TODO:
-				broadcast to frontend
-		*/
-		return
+		return err
 	}
 
-	// getting devices already in room
-	var roomInfo MODELS.Room
-	roomInfo, err = DB.GetRoomByID(sceneInfo.RoomId)
-
-	if err != nil {
-		fmt.Println("Could not fetch scene data. Aborting")
-		/*
-			TODO:
-				broadcast to frontend
-		*/
-		return
-	}
-	var roomDevices []string = roomInfo.DeviceIds
-
-	var deviceIds []string = strings.Split(sceneInfo.DeviceIds, ",")
-	var deviceConfigs []string = strings.Split(sceneInfo.DeviceConfigs, "||")
-
-	for in, deviceId := range deviceIds {
+	for _, config := range sceneConfigs {
 		client.Subscribe(
-			CONFIG.GetDeviceAckTopic(deviceId),
+			CONFIG.GetDeviceAckTopic(config.DeviceId),
 			byte(CONFIG.MQTT_QOS),
-			SetDeviceStatusAck,
+			func(c MQTT.Client, m MQTT.Message) {
+				err = SetDeviceStatusAck(c, m)
+				done += 1
+			},
 		)
 
 		client.Publish(
-			CONFIG.GetDeviceComTopic(deviceId),
+			CONFIG.GetDeviceComTopic(config.DeviceId),
 			byte(CONFIG.MQTT_QOS),
 			false,
-			deviceConfigs[in],
+			config.DeviceConfig,
 		)
 	}
 
-	// power off all other devices in the room
-	for _, deviceId := range roomDevices {
-		if !sliceContains(deviceIds, deviceId) {
-			// power off this device
-			client.Subscribe(
-				CONFIG.GetDeviceAckTopic(deviceId),
-				byte(CONFIG.MQTT_QOS),
-				SetDeviceStatusAck,
-			)
-
-			client.Publish(
-				CONFIG.GetDeviceComTopic(deviceId),
-				byte(CONFIG.MQTT_QOS),
-				false,
-				deviceId+" "+"OFF",
-			)
+	for {
+		if done == len(sceneConfigs) {
+			break
 		}
 	}
-
-	/*
-		TODO:
-			broadcast to frontend
-	*/
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -114,8 +114,8 @@ class AirConditioner(Device):
     
     def get_status_string(self) -> Dict[str, Any]:
         status = {
-            "id": self.get_id(),
-            "type": "AC",
+            # "id": self.get_id(),
+            # "type": "AC",
             "temperature": self.__current_temp,
             "fanSpeed": self.__fan_speed.value,
             "swingState": self.__swing_state.value,

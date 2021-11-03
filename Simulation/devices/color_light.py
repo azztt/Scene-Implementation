@@ -49,8 +49,8 @@ class ColorLight(Light):
 
     def get_status_string(self) -> Dict[str, Any]:
         status = {
-            "id": self.get_id(),
-            "type": "CLIGHT",
+            # "id": self.get_id(),
+            # "type": "CLIGHT",
             "brightness": self.get_current_brightness(),
             "color": "({},{},{})".format(
                 self.__color[0],

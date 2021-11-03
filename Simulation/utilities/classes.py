@@ -145,12 +145,26 @@ class StatusThread(Thread):
 
             statuses: List[Dict[str, Any]] = self.__controller.get_all_device_status()
 
-            for status in statuses:
-                self.__client.publish(
-                    topic="/".join([DEVICE_STATUS, status["type"]]),
-                    payload=json.dumps(status),
-                    qos=1
-                )
+            deviceStatus = {
+                "statuses": statuses
+            }
+
+            # for status in statuses:
+            #     self.__client.publish(
+            #         topic="/".join([DEVICE_STATUS, status["type"]]),
+            #         payload=json.dumps(status),
+            #         qos=1
+            #     )
+            
+            self.__client.publish(
+                topic=DEVICE_STATUS,
+                payload=json.dumps(deviceStatus),
+                qos=1
+            )
+
+            # print device statuses to console for testing
+            print("Updated device statuses:")
+            print(deviceStatus)
             
             t2 = perf_counter()
 

@@ -50,8 +50,8 @@ class Light(Device):
     
     def get_status_string(self) -> Dict[str, Any]:
         status = {
-            "id": self.get_id(),
-            "type": "LIGHT",
+            # "id": self.get_id(),
+            # "type": "LIGHT",
             "brightness": self.get_current_brightness()
         }
         return status

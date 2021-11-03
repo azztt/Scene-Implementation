@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	DB "github.com/azztt/Scene-Implementation/database"
-	MODELS "github.com/azztt/Scene-Implementation/models"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
@@ -16,7 +15,7 @@ func OnConnect(client MQTT.Client) {
 
 func OnPresence(client MQTT.Client, message MQTT.Message) {
 	fmt.Println("Simulation now online")
-	simulationConnected = true
+	// simulationConnected = true
 }
 
 func OnContConnect(client MQTT.Client, message MQTT.Message) {
@@ -84,78 +83,113 @@ func OnWill(client MQTT.Client, message MQTT.Message) {
 	OnContDisconnect(client, message)
 }
 
-func OnDeviceStatus(client MQTT.Client, message MQTT.Message) {
-	var msg string = message.Topic()
-	var msgSliced []string = strings.Split(msg, "/")
-	var deviceType string = msgSliced[2]
+func OnDeviceStatus(client MQTT.Client, message MQTT.Message, statusChannel chan map[string]interface{}) {
+	// var msg string = message.Topic()
+	// var msgSliced []string = strings.Split(msg, "/")
+	// var deviceType string = msgSliced[2]
 
 	/*
 		TODO:
 			add websocket post to the frontend
 	*/
 
-	var did string
-	var status string
+	// var did string
+	// var status string
 
-	var ac MODELS.AC
-	var clight MODELS.ColorLight
-	var dlock MODELS.DoorLock
-	var fan MODELS.Fan
-	var light MODELS.Light
+	// var ac MODELS.AC
+	// var clight MODELS.ColorLight
+	// var dlock MODELS.DoorLock
+	// var fan MODELS.Fan
+	// var light MODELS.Light
 
-	if deviceType == MODELS.AC_TYPE {
-		json.Unmarshal(message.Payload(), &ac)
+	// if deviceType == MODELS.AC_TYPE {
+	// 	json.Unmarshal(message.Payload(), &ac)
 
-		// add device to device list if not already present
-		if _, ok := acs[ac.ID]; !ok {
-			acs[ac.ID] = ac
+	// 	// add device to device list if not already present
+	// 	if _, ok := acs[ac.ID]; !ok {
+	// 		acs[ac.ID] = ac
+	// 	}
+	// 	did = ac.ID
+	// 	status = ac.GetStatusString()
+	// } else if deviceType == MODELS.CLIGHT_TYPE {
+	// 	json.Unmarshal(message.Payload(), &clight)
+
+	// 	// add device to device list if not already present
+	// 	if _, ok := acs[clight.ID]; !ok {
+	// 		colorLights[clight.ID] = clight
+	// 	}
+	// 	did = clight.ID
+	// 	status = clight.GetStatusString()
+	// } else if deviceType == MODELS.DLOCK_TYPE {
+	// 	json.Unmarshal(message.Payload(), &dlock)
+
+	// 	// add device to device list if not already present
+	// 	if _, ok := acs[dlock.ID]; !ok {
+	// 		doorLocks[dlock.ID] = dlock
+	// 	}
+	// 	did = dlock.ID
+	// 	status = dlock.GetStatusString()
+	// } else if deviceType == MODELS.FAN_TYPE {
+	// 	json.Unmarshal(message.Payload(), &fan)
+
+	// 	// add device to device list if not already present
+	// 	if _, ok := acs[fan.ID]; !ok {
+	// 		fans[fan.ID] = fan
+	// 	}
+	// 	did = fan.ID
+	// 	status = fan.GetStatusString()
+	// } else if deviceType == MODELS.LIGHT_TYPE {
+	// 	json.Unmarshal(message.Payload(), &light)
+
+	// 	// add device to device list if not already present
+	// 	if _, ok := acs[light.ID]; !ok {
+	// 		lights[light.ID] = light
+	// 	}
+	// 	did = light.ID
+	// 	status = light.GetStatusString()
+	// }
+
+	/*
+		`status` format for each device
+		{
+			"id": string,
+			"status": {
+				"param": value,
+				...
+			}
 		}
-		did = ac.ID
-		status = ac.GetStatusString()
-	} else if deviceType == MODELS.CLIGHT_TYPE {
-		json.Unmarshal(message.Payload(), &clight)
-
-		// add device to device list if not already present
-		if _, ok := acs[clight.ID]; !ok {
-			colorLights[clight.ID] = clight
+		message format
+		{
+			"statuses": []status
 		}
-		did = clight.ID
-		status = clight.GetStatusString()
-	} else if deviceType == MODELS.DLOCK_TYPE {
-		json.Unmarshal(message.Payload(), &dlock)
+	*/
+	var deviceStatuses map[string]interface{}
 
-		// add device to device list if not already present
-		if _, ok := acs[dlock.ID]; !ok {
-			doorLocks[dlock.ID] = dlock
-		}
-		did = dlock.ID
-		status = dlock.GetStatusString()
-	} else if deviceType == MODELS.FAN_TYPE {
-		json.Unmarshal(message.Payload(), &fan)
+	err := json.Unmarshal(message.Payload(), &deviceStatuses)
 
-		// add device to device list if not already present
-		if _, ok := acs[fan.ID]; !ok {
-			fans[fan.ID] = fan
-		}
-		did = fan.ID
-		status = fan.GetStatusString()
-	} else if deviceType == MODELS.LIGHT_TYPE {
-		json.Unmarshal(message.Payload(), &light)
-
-		// add device to device list if not already present
-		if _, ok := acs[light.ID]; !ok {
-			lights[light.ID] = light
-		}
-		did = light.ID
-		status = light.GetStatusString()
-	}
-
-	// updating to db
-	err := DB.UpdateDeviceStatus(did, status)
 	if err != nil {
-		fmt.Println("Could not update db. not sending to client")
-	} else {
-		// websocket broadcast here
+		fmt.Println("Could not read statuses. skipping")
+		return
 	}
 
+	var actualUpdates []map[string]interface{} = make([]map[string]interface{}, 0, 10)
+
+	for _, deviceStatus := range deviceStatuses["statuses"].([]map[string]interface{}) {
+		var statusString string = structToStatusString(deviceStatus["status"].(map[string]interface{}))
+		// updating to db
+		var update int64
+		update, err = DB.UpdateDeviceStatus(deviceStatus["id"].(string), statusString)
+		if err != nil {
+			fmt.Println("Could not update db. not sending to client")
+			return
+		} else if update > 0 {
+			// send only the actual updated values to frontend to save bandwidth
+			actualUpdates = append(actualUpdates, deviceStatus)
+		}
+	}
+	var updates map[string]interface{} = map[string]interface{}{
+		"updates": actualUpdates,
+	}
+
+	statusChannel <- updates
 }

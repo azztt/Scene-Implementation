@@ -15,7 +15,7 @@ type void struct{}
 
 var client MQTT.Client
 
-var simulationConnected bool = false
+// var simulationConnected bool = false
 
 var acs map[string]MODELS.AC = make(map[string]MODELS.AC)
 var colorLights map[string]MODELS.ColorLight = make(map[string]MODELS.ColorLight)
@@ -23,12 +23,12 @@ var doorLocks map[string]MODELS.DoorLock = make(map[string]MODELS.DoorLock)
 var fans map[string]MODELS.Fan = make(map[string]MODELS.Fan)
 var lights map[string]MODELS.Light = make(map[string]MODELS.Light)
 
-var rooms map[string]MODELS.Room = make(map[string]MODELS.Room)
+// var rooms map[string]MODELS.Room = make(map[string]MODELS.Room)
 
 var mem void
 var onlineDevices map[string]void = make(map[string]void)
 
-func Start() {
+func Start(statusChannel chan map[string]interface{}) {
 	var clientOptions *MQTT.ClientOptions = MQTT.NewClientOptions()
 	var brokerURI url.URL = url.URL{
 		Scheme: "tcp",
@@ -98,7 +98,9 @@ func Start() {
 	token = client.Subscribe(
 		CONFIG.DEVICE_STATUS,
 		byte(CONFIG.MQTT_QOS),
-		OnDeviceStatus,
+		func(c MQTT.Client, m MQTT.Message) {
+			OnDeviceStatus(c, m, statusChannel)
+		},
 	)
 	if token.Wait() && token.Error() != nil {
 		fmt.Printf("Could not subscribe to device status")

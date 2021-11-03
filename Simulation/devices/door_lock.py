@@ -30,8 +30,8 @@ class DoorLock(Device):
     
     def get_status_string(self) -> Dict[str, Any]:
         status = {
-            "id": self.get_id(),
-            "type": "DLOCK",
+            # "id": self.get_id(),
+            # "type": "DLOCK",
             "state": self.__lock_state.value
         }
         return status

@@ -10,50 +10,42 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
-type room struct {
-	ID   string
-	Name string
-}
-
 // callback for new room creation acknowledgement
-func OnNewRoomAck(client MQTT.Client, message MQTT.Message) {
+func OnNewRoomAck(client MQTT.Client, message MQTT.Message) (MODELS.Room, error) {
 	// first unsubscribe from the topic
 	client.Unsubscribe(CONFIG.NEW_ROOM_ACK)
 
-	var room room
-	var done bool = true
+	var room MODELS.Room
+	// var done bool = true
 	err := json.Unmarshal(message.Payload(), &room)
 	if err != nil {
 		fmt.Println("Could not verify new room creation")
-		done = false
+		// done = false
+		return room, err
 	}
 
-	if done {
-		var newRoom MODELS.Room = MODELS.Room{
-			ID:        room.ID,
-			Name:      room.Name,
-			DeviceIds: make([]string, 0),
-		}
-		// writing to database
-		err := DB.InsertNewRoom(newRoom)
-		if err != nil {
-			fmt.Println("Could not write room to database")
-			return
-		}
-		/*
-			TODO:
-				broadcast acknowledgement to frontend
-		*/
+	// writing to database
+	err = DB.InsertNewRoom(room)
+	if err != nil {
+		fmt.Println("Could not write room to database")
+		return room, err
 	}
+	return room, nil
 }
 
 // sends command for new room creation
-func NewRoom(roomName string) {
+func NewRoom(roomName string) (MODELS.Room, error) {
+	var room MODELS.Room
+	var err error
+	done := false
 	// subscribe to acknowledge topic
 	client.Subscribe(
 		CONFIG.NEW_ROOM_ACK,
 		byte(CONFIG.MQTT_QOS),
-		OnNewRoomAck,
+		func(c MQTT.Client, m MQTT.Message) {
+			room, err = OnNewRoomAck(c, m)
+			done = true
+		},
 	)
 
 	client.Publish(
@@ -62,10 +54,22 @@ func NewRoom(roomName string) {
 		false,
 		roomName,
 	)
+
+	for {
+		if done {
+			break
+		}
+	}
+
+	if err != nil {
+		return room, err
+	} else {
+		return room, nil
+	}
 }
 
 // callback for room deletion acknowledgement
-func OnRemRoomAck(client MQTT.Client, message MQTT.Message) {
+func OnRemRoomAck(client MQTT.Client, message MQTT.Message) error {
 	// first unsubscribe from the topic
 	client.Unsubscribe(CONFIG.REM_ROOM_ACK)
 
@@ -77,26 +81,29 @@ func OnRemRoomAck(client MQTT.Client, message MQTT.Message) {
 	}
 
 	if done {
-		// deleting from database
+		// deleting room from database, cascade delete enabled
 		err := DB.DeleteRoomById(roomId)
 		if err != nil {
 			fmt.Println("Could not delete room from database")
-			return
+			return err
 		}
-		/*
-			TODO:
-				broadcast acknowledgement to frontend
-		*/
+		return nil
 	}
+	return fmt.Errorf("removing room failed")
 }
 
-// sends command for new room creation
-func RemoveRoom(roomId string) {
+// sends command for removing room
+func RemoveRoom(roomId string) error {
+	var err error
+	done := false
 	// subscribe to acknowledge topic
 	client.Subscribe(
 		CONFIG.REM_ROOM_ACK,
 		byte(CONFIG.MQTT_QOS),
-		OnRemRoomAck,
+		func(c MQTT.Client, m MQTT.Message) {
+			err = OnRemRoomAck(c, m)
+			done = true
+		},
 	)
 
 	client.Publish(
@@ -105,52 +112,105 @@ func RemoveRoom(roomId string) {
 		false,
 		roomId,
 	)
+
+	for {
+		if done {
+			break
+		}
+	}
+
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+// creating new scene information
+func NewScene(sceneInfo map[string]interface{}) {
+	/*
+		sceneInfo {
+			"name": string,
+			"deviceConfigs": [
+				{
+					"deviceId": string,
+					"config": string
+				},...
+			]
+		}
+	*/
+	var deviceConfigs []map[string]interface{} = sceneInfo["deviceConfigs"].([]map[string]interface{})
+	// adding a new scene first in db
+	newSceneId, err := DB.InsertNewScene(MODELS.Scene{
+		Name: sceneInfo["name"].(string),
+	})
+
+	if err != nil {
+		fmt.Println("Could not create scene in database")
+		return
+	}
+
+	// add configs to db
+	err = DB.InsertNewConfigs(newSceneId, deviceConfigs)
+	if err != nil {
+		fmt.Println("Could not add configs to database")
+		return
+	}
 }
 
 // callback for new device acknowledgement
-func OnNewDeviceAck(client MQTT.Client, message MQTT.Message) {
+func OnNewDeviceAck(client MQTT.Client, message MQTT.Message) (MODELS.Device, error) {
 	// first unsubscribe from the topic
 	client.Unsubscribe(CONFIG.NEW_DEVICE_ACK)
 
-	var done bool = true
+	// var done bool = true
 	var msg map[string]interface{}
 	err := json.Unmarshal(message.Payload(), &msg)
 
 	if err != nil {
-		done = false
+		// done = false
+		return MODELS.Device{}, err
 	}
 
-	if done {
-		// insert device in the database
-		var device MODELS.Device = MODELS.Device{
-			ID:         msg["id"].(string),
-			Name:       msg["name"].(string),
-			Type:       msg["type"].(string),
-			Parameters: msg["parameters"].(string),
-			Status:     msg["status"].(string),
-		}
-		err := DB.InsertNewDevice(device)
-		if err != nil {
-			fmt.Println("Could not add device to database")
-			return
-		}
-
-		// added to list of online devices
-		onlineDevices[device.ID] = mem
-
-		/*
-			TODO:
-				broadcast acknowledgement to frontend
-		*/
+	// if done {
+	// insert device in the database
+	var device MODELS.Device = MODELS.Device{
+		ID:         msg["id"].(string),
+		Name:       msg["name"].(string),
+		RoomId:     msg["roomId"].(string),
+		Type:       msg["type"].(string),
+		Parameters: msg["parameters"].(string),
+		Status:     msg["status"].(string),
 	}
+	err = DB.InsertNewDevice(device)
+	if err != nil {
+		fmt.Println("Could not add device to database")
+		return MODELS.Device{}, err
+	}
+
+	// added to list of online devices
+	// onlineDevices[device.ID] = mem
+	return device, nil
+	// }
 }
 
 // sends command for new device creation
-func NewDevice(params map[string]interface{}) {
-	var dType string = params["type"].(string)
+func NewDevice(params map[string]interface{}) (MODELS.Device, error) {
+	// var dType string = params["type"].(string)
+	done := false
+	var device MODELS.Device
+	var err error
 
 	jsonData, _ := json.Marshal(params)
 	// subscribe to acknowledgement topic
+	client.Subscribe(
+		CONFIG.NEW_DEVICE_ACK,
+		byte(CONFIG.MQTT_QOS),
+		func(c MQTT.Client, m MQTT.Message) {
+			device, err = OnNewDeviceAck(c, m)
+			done = true
+		},
+	)
 
 	client.Publish(
 		CONFIG.NEW_DEVICE,
@@ -158,25 +218,36 @@ func NewDevice(params map[string]interface{}) {
 		false,
 		jsonData,
 	)
-	if dType == MODELS.AC_TYPE {
-		var ac MODELS.AC
-		ac.CreateDevice(params)
-	} else if dType == MODELS.CLIGHT_TYPE {
-		var clight MODELS.ColorLight
-		clight.CreateDevice(params)
-	} else if dType == MODELS.FAN_TYPE {
-		var fan MODELS.Fan
-		fan.CreateDevice(params)
-	} else if dType == MODELS.LIGHT_TYPE {
-		var light MODELS.Light
-		light.CreateDevice(params)
-	} else if dType == MODELS.DLOCK_TYPE {
-		// var dlock MODELS.ColorLight
+
+	for {
+		if done {
+			break
+		}
 	}
+	if err != nil {
+		return device, err
+	}
+	return device, nil
+	// if dType == MODELS.AC_TYPE {
+	// 	var ac MODELS.AC
+	// 	ac.CreateDevice(params)
+	// } else if dType == MODELS.CLIGHT_TYPE {
+	// 	var clight MODELS.ColorLight
+	// 	clight.CreateDevice(params)
+	// } else if dType == MODELS.FAN_TYPE {
+	// 	var fan MODELS.Fan
+	// 	fan.CreateDevice(params)
+	// } else if dType == MODELS.LIGHT_TYPE {
+	// 	var light MODELS.Light
+	// 	light.CreateDevice(params)
+	// }
+	// else if dType == MODELS.DLOCK_TYPE {
+	// var dlock MODELS.ColorLight
+	// }
 }
 
-// callback for room deletion acknowledgement
-func OnRemDeviceAck(client MQTT.Client, message MQTT.Message) {
+// callback for deletion deletion acknowledgement
+func OnRemDeviceAck(client MQTT.Client, message MQTT.Message) error {
 	// first unsubscribe from the topic
 	client.Unsubscribe(CONFIG.REM_DEVICE_ACK)
 
@@ -188,11 +259,11 @@ func OnRemDeviceAck(client MQTT.Client, message MQTT.Message) {
 	}
 
 	if done {
-		// deleting from database
+		// deleting from database, cascade delete enabled
 		err := DB.DeleteDeviceById(deviceId)
 		if err != nil {
 			fmt.Println("Could not delete device from database")
-			return
+			return err
 		}
 		// removing from server lists
 		delete(onlineDevices, deviceId)
@@ -201,20 +272,23 @@ func OnRemDeviceAck(client MQTT.Client, message MQTT.Message) {
 		delete(doorLocks, deviceId)
 		delete(fans, deviceId)
 		delete(lights, deviceId)
-		/*
-			TODO:
-				broadcast acknowledgement to frontend
-		*/
+		return nil
 	}
+	return fmt.Errorf("removing device failed")
 }
 
-// sends command for new room creation
-func RemoveDevice(deviceId string) {
+// sends command for device deletion
+func RemoveDevice(deviceId string) error {
+	done := false
+	var err error
 	// subscribe to acknowledge topic
 	client.Subscribe(
 		CONFIG.REM_DEVICE_ACK,
 		byte(CONFIG.MQTT_QOS),
-		OnRemDeviceAck,
+		func(c MQTT.Client, m MQTT.Message) {
+			err = OnRemDeviceAck(c, m)
+			done = true
+		},
 	)
 
 	client.Publish(
@@ -223,4 +297,16 @@ func RemoveDevice(deviceId string) {
 		false,
 		deviceId,
 	)
+
+	for {
+		if done {
+			break
+		}
+	}
+
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
 }

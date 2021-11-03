@@ -1,7 +1,6 @@
 package models
 
 type Room struct {
-	ID        string
-	Name      string
-	DeviceIds []string
+	ID   string
+	Name string
 }

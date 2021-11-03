@@ -194,6 +194,11 @@ class Controller(Device):
         statuses: List[Dict[str, Any]] = []
 
         for device in self.__devices:
-            statuses.append(device.get_status_string)
+            statuses.append(
+                {
+                    "id": device.get_id(),
+                    "status": device.get_status_string()
+                }
+            )
         
         return statuses

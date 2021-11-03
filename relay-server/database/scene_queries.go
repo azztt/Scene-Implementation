@@ -6,11 +6,33 @@ import (
 	MODELS "github.com/azztt/Scene-Implementation/models"
 )
 
+// get all scenes
+func GetAllScenes() ([]MODELS.Scene, error) {
+	var scenes []MODELS.Scene
+
+	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s", SCENE_TABLE))
+
+	if err != nil {
+		return nil, fmt.Errorf("GetAllScenes: %v", err)
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var scene MODELS.Scene
+		err = rows.Scan(&scene.ID, &scene.Name)
+		if err != nil {
+			return nil, fmt.Errorf("GetAllScenes: %v", err)
+		}
+		scenes = append(scenes, scene)
+	}
+	return scenes, nil
+}
+
 // get scene details from database
-func GetSceneByID(sceneId string) (MODELS.Scene, error) {
+func GetSceneByID(sceneId int64) (MODELS.Scene, error) {
 	sceneRow := db.QueryRow(
-		"SELECT * FROM ? WHERE id = ? LIMIT 1",
-		SCENE_TABLE,
+		fmt.Sprintf("SELECT * FROM %s WHERE id = ?", SCENE_TABLE),
 		sceneId,
 	)
 
@@ -19,9 +41,6 @@ func GetSceneByID(sceneId string) (MODELS.Scene, error) {
 	err := sceneRow.Scan(
 		&scene.ID,
 		&scene.Name,
-		&scene.RoomId,
-		&scene.DeviceIds,
-		&scene.DeviceConfigs,
 	)
 	if err != nil {
 		return scene, fmt.Errorf("GetSceneByID: %v", err)
@@ -31,32 +50,30 @@ func GetSceneByID(sceneId string) (MODELS.Scene, error) {
 }
 
 // save new scene
-func InsertNewScene(scene MODELS.Scene) error {
+func InsertNewScene(scene MODELS.Scene) (int64, error) {
 	cmd, _ := db.Prepare(
-		"INSERT INTO ? (id, name, roomId, deviceIds, deviceConfigs) VALUES (?, ?, ?, ?, ?)",
+		fmt.Sprintf("INSERT INTO %s (name) VALUES (?)", SCENE_TABLE),
 	)
 
-	_, err := cmd.Exec(
-		SCENE_TABLE,
-		scene.ID,
+	res, err := cmd.Exec(
 		scene.Name,
-		scene.RoomId,
-		scene.DeviceIds,
-		scene.DeviceConfigs,
 	)
 	if err != nil {
-		return fmt.Errorf("InsertNewScene: %v", err)
+		return 0, fmt.Errorf("InsertNewScene: %v", err)
 	}
-	return nil
+	newId, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("InsertNewScene: %v", err)
+	}
+	return newId, nil
 }
 
 // delete scene by id
-func DeleteSceneById(sceneId string) error {
+func DeleteSceneById(sceneId int64) error {
 	cmd, _ := db.Prepare(
-		"DELETE FROM ? WHERE id = ?",
+		fmt.Sprintf("DELETE FROM %s WHERE id = ?", SCENE_TABLE),
 	)
 	_, err := cmd.Exec(
-		SCENE_TABLE,
 		sceneId,
 	)
 	if err != nil {

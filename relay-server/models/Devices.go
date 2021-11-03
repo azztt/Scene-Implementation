@@ -11,7 +11,8 @@ const (
 type Device struct {
 	ID         string
 	Name       string
-	Type       string
+	RoomId     string
 	Parameters string
 	Status     string
+	Type       string
 }

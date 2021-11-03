@@ -51,8 +51,8 @@ class Fan(Device):
     
     def get_status_string(self) -> Dict[str, Any]:
         status = {
-            "id": self.get_id(),
-            "type": "FAN",
+            # "id": self.get_id(),
+            # "type": "FAN",
             "speed": self.__current_speed_level
         }
         return status

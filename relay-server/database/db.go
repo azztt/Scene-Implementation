@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"path/filepath"
 )
 
 //database handle
@@ -14,7 +15,8 @@ import (
 var db *sql.DB
 
 func ConnectDB() error {
-	var envErr error = godotenv.Load("../.env")
+	envPath, _ := filepath.Abs("./.env")
+	var envErr error = godotenv.Load(envPath)
 	if envErr != nil {
 		fmt.Println("Could not connect to db, aborting server start...")
 		return envErr
