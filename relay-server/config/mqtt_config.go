@@ -8,6 +8,7 @@ const MQTT_CLIENT_ID string = "RELAY_SERVER"
 
 // topics for simulation
 const PRES_SIM string = "simulation/connected"
+const DISC_SIM string = "simulation/disconnected"
 const CONT_CON string = "simulation/sub"
 const CONT_DISCON string = "simulation/unsub"
 const NEW_ROOM string = "simulation/new_room"
@@ -18,7 +19,7 @@ const NEW_DEVICE string = "simulation/new_device"
 const NEW_DEVICE_ACK string = "simulation/new_device/ack"
 const REM_DEVICE string = "simulation/rem_device"
 const REM_DEVICE_ACK string = "simulation/rem_device/ack"
-const DEVICE_STATUS string = "simulation/device_status/+"
+const DEVICE_STATUS string = "simulation/device_status"
 const START_SIM string = "simulation/start"
 const STOP_SIM string = "simulation/stop"
 

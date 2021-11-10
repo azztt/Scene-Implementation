@@ -23,8 +23,8 @@ func GetAllDevices() ([]MODELS.Device, error) {
 		var data MODELS.Device
 		err := rows.Scan(
 			&data.ID,
-			&data.Name,
 			&data.RoomId,
+			&data.Name,
 			&data.Parameters,
 			&data.Status,
 			&data.Type,
@@ -53,11 +53,15 @@ func UpdateDeviceStatus(deviceId string, status string) (int64, error) {
 
 // insert new device
 func InsertNewDevice(device MODELS.Device) error {
-	cmd, _ := db.Prepare(
-		fmt.Sprintf("INSERT INTO %s (id, name, roomId, parameters, status, type) VALUES (?, ?, ?, ?, ?)", DEVICE_TABLE),
+	cmd, err := db.Prepare(
+		fmt.Sprintf("INSERT INTO %s (id, name, roomId, parameters, status, type) VALUES (?, ?, ?, ?, ?, ?)", DEVICE_TABLE),
 	)
 
-	_, err := cmd.Exec(
+	if err != nil {
+		return fmt.Errorf("InsertNewDevice: %v", err)
+	}
+
+	_, err = cmd.Exec(
 		device.ID,
 		device.Name,
 		device.RoomId,
@@ -68,6 +72,7 @@ func InsertNewDevice(device MODELS.Device) error {
 	if err != nil {
 		return fmt.Errorf("InsertNewDevice: %v", err)
 	}
+	fmt.Println("device added to db")
 	return nil
 }
 

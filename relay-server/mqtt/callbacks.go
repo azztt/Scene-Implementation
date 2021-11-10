@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"strings"
 
+	CONFIG "github.com/azztt/Scene-Implementation/config"
 	DB "github.com/azztt/Scene-Implementation/database"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
+
+func OnLog(client MQTT.Client, message MQTT.Message) {
+	fmt.Printf("Received mqtt message:\n %v\n", message)
+}
 
 func OnConnect(client MQTT.Client) {
 	fmt.Println("Relay server successfully connected to broker")
@@ -15,6 +20,18 @@ func OnConnect(client MQTT.Client) {
 
 func OnPresence(client MQTT.Client, message MQTT.Message) {
 	fmt.Println("Simulation now online")
+	// simulationConnected = true
+	// start the simulation
+	client.Publish(
+		CONFIG.START_SIM,
+		byte(2),
+		false,
+		"",
+	)
+}
+
+func OnSimDisc(client MQTT.Client, message MQTT.Message) {
+	fmt.Println("Simulation now offline")
 	// simulationConnected = true
 }
 
@@ -174,17 +191,18 @@ func OnDeviceStatus(client MQTT.Client, message MQTT.Message, statusChannel chan
 
 	var actualUpdates []map[string]interface{} = make([]map[string]interface{}, 0, 10)
 
-	for _, deviceStatus := range deviceStatuses["statuses"].([]map[string]interface{}) {
-		var statusString string = structToStatusString(deviceStatus["status"].(map[string]interface{}))
+	for _, deviceStatus := range deviceStatuses["statuses"].([]interface{}) {
+		var statusString string = structToStatusString(deviceStatus.(map[string]interface{})["status"].(map[string]interface{}))
 		// updating to db
+		fmt.Println("Entered status update loop")
 		var update int64
-		update, err = DB.UpdateDeviceStatus(deviceStatus["id"].(string), statusString)
+		update, err = DB.UpdateDeviceStatus(deviceStatus.(map[string]interface{})["id"].(string), statusString)
 		if err != nil {
 			fmt.Println("Could not update db. not sending to client")
 			return
 		} else if update > 0 {
 			// send only the actual updated values to frontend to save bandwidth
-			actualUpdates = append(actualUpdates, deviceStatus)
+			actualUpdates = append(actualUpdates, deviceStatus.(map[string]interface{}))
 		}
 	}
 	var updates map[string]interface{} = map[string]interface{}{

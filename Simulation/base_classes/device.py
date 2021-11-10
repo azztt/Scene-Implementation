@@ -10,9 +10,9 @@ from .entity import Entity
 class Device(Entity):
     def __init__(self, name: str, id: str, type: Literal = None) -> None:
         super().__init__(name, id)
-        self.__power_status = PowerStatus.OFF
-        self.__room: Room = None
-        self.__type: Literal = type
+        self.power_status = PowerStatus.OFF
+        self.room: Room = None
+        self.type: Literal = type
     
     def error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -20,7 +20,7 @@ class Device(Entity):
         """
         print("{}Device {} in Room {}: {}".format(
             prefix, self.get_name(), 
-            self.__room.get_name(), errmsg
+            self.room.get_name(), errmsg
         ))
     
     def power_on(self) -> str:
@@ -30,10 +30,10 @@ class Device(Entity):
         else returns error message,
         """
         try:
-            if not self.__room:
+            if not self.room:
                 errmsg = "Device not in any room. First add this device to a room."
                 return errmsg
-            self.__power_status = PowerStatus.ON
+            self.power_status = PowerStatus.ON
         except RuntimeError as err:
             errmsg = "Could not power on the device"
             self.error(err)
@@ -48,7 +48,7 @@ class Device(Entity):
         else returns False with the error message,
         """
         try:
-            self.__power_status = PowerStatus.OFF
+            self.power_status = PowerStatus.OFF
         except RuntimeError as err:
             errmsg = "Could not power off the device"
             self.error(err)
@@ -63,7 +63,7 @@ class Device(Entity):
         Returns None on success else an error message
         """
         try:
-            self.__room = room
+            self.room = room
         except RuntimeError as err:
             errmsg = "Could not place in room"
             self.error(err)
@@ -79,7 +79,7 @@ class Device(Entity):
             err = self.power_off()
             if err:
                 raise RuntimeError(err)
-            self.__room = None
+            self.room = None
         except RuntimeError as err:
             errmsg = "Could not remove from room"
             self.error(err)
@@ -91,19 +91,19 @@ class Device(Entity):
         """
         Returns the power status (ON or OFF) of the device.
         """
-        return self.__power_status
+        return self.power_status
     
     def get_room(self) -> Room:
         """
         Returns the room object in which this device is present.
         """
-        return self.__room
+        return self.room
     
     def get_device_type(self) -> Literal:
         """
         Returns the type of this device
         """
-        return self.__type
+        return self.type
     
     def get_status_string(self) -> Dict[str, Any]:
         """

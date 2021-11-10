@@ -50,9 +50,31 @@ func Start(statusChannel chan map[string]interface{}) {
 
 	// subscribe to the topics with handlers
 
-	// subscribe to controller presence topic
+	// subscribe to all simulation topics for logging
+	token = client.Subscribe(
+		"simulation/#",
+		byte(CONFIG.MQTT_QOS),
+		OnLog,
+	)
+	if token.Wait() && token.Error() != nil {
+		fmt.Printf("Could not subscribe to logging topic")
+		os.Exit(1)
+	}
+
+	// subscribe to simulation presence topic
 	token = client.Subscribe(
 		CONFIG.PRES_SIM,
+		byte(CONFIG.MQTT_QOS),
+		OnPresence,
+	)
+	if token.Wait() && token.Error() != nil {
+		fmt.Printf("Could not subscribe to simulation online topic")
+		os.Exit(1)
+	}
+
+	// subscribe to simulation presence topic
+	token = client.Subscribe(
+		CONFIG.DISC_SIM,
 		byte(CONFIG.MQTT_QOS),
 		OnPresence,
 	)

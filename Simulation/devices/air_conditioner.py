@@ -1,18 +1,18 @@
 from time import sleep
-from typing import Any, Dict, Literal, Tuple
+from typing import Any, Dict, Literal, OrderedDict, Tuple
 from base_classes import Device
-from utilities import ACFanSpeed, ACMode, ACSwingState, DeviceType
+from utilities import ACFanSpeed, ACMode, ACSwingState, DeviceType, PowerStatus
 from utilities import is_in_range
 
 class AirConditioner(Device):
     def __init__(self, name: str, id: str,
                 temp_range: Tuple[int, int]) -> None:
         super().__init__(name, id, DeviceType.AC)
-        self.__temp_range = temp_range
-        self.__current_temp = (temp_range[0]+temp_range[1])/2
-        self.__fan_speed = ACFanSpeed.MID
-        self.__swing_state = ACSwingState.OFF
-        self.__mode = ACMode.COOL
+        self.temp_range = temp_range
+        self.current_temp = (temp_range[0]+temp_range[1])/2
+        self.fan_speed = ACFanSpeed.MID
+        self.swing_state = ACSwingState.OFF
+        self.mode = ACMode.COOL
     
     def error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -25,7 +25,7 @@ class AirConditioner(Device):
         """
         Returns current set temperature of AC.
         """
-        return self.__current_temp
+        return self.current_temp
     
     def set_current_temp(self, temp: int) -> str:
         """
@@ -34,8 +34,8 @@ class AirConditioner(Device):
         returns an error message.
         """
         try:
-            if is_in_range(temp, self.__temp_range):
-                self.__current_temp = temp
+            if is_in_range(temp, self.temp_range):
+                self.current_temp = temp
             else:
                 errmsg = "Temperature out of range."
                 raise ValueError(errmsg)
@@ -53,7 +53,7 @@ class AirConditioner(Device):
         """
         Returns current fan speed of AC.
         """
-        return self.__fan_speed
+        return self.fan_speed
     
     def set_fan_speed(self, fan_speed: Literal) -> str:
         """
@@ -62,7 +62,7 @@ class AirConditioner(Device):
         error message.
         """
         try:
-            self.__fan_speed = fan_speed
+            self.fan_speed = fan_speed
         except RuntimeError as err:
             errmsg = "Could not set fan speed."
             self.error(err)
@@ -74,7 +74,7 @@ class AirConditioner(Device):
         """
         Returns current swing state of AC.
         """
-        return self.__swing_state
+        return self.swing_state
     
     def set_swing(self, state: Literal) -> str:
         """
@@ -83,7 +83,7 @@ class AirConditioner(Device):
         error message.
         """
         try:
-            self.__swing_state = state
+            self.swing_state = state
         except RuntimeError as err:
             errmsg = "Could not set swing."
             self.error(err)
@@ -95,7 +95,7 @@ class AirConditioner(Device):
         """
         Returns current mode of AC.
         """
-        return self.__mode
+        return self.mode
     
     def set_mode(self, mode: Literal) -> str:
         """
@@ -104,7 +104,7 @@ class AirConditioner(Device):
         error message.
         """
         try:
-            self.__mode = mode
+            self.mode = mode
         except RuntimeError as err:
             errmsg = "Could not set mode."
             self.error(err)
@@ -112,19 +112,20 @@ class AirConditioner(Device):
         else:
             return None
     
-    def get_status_string(self) -> Dict[str, Any]:
-        status = {
+    def get_status_string(self) -> OrderedDict[str, Any]:
+        status = OrderedDict([
             # "id": self.get_id(),
             # "type": "AC",
-            "temperature": self.__current_temp,
-            "fanSpeed": self.__fan_speed.value,
-            "swingState": self.__swing_state.value,
-            "mode": self.__mode.value
-        }
+            ("power", self.get_power_status().value),
+            ("temperature", self.current_temp),
+            ("fanSpeed", self.fan_speed.value),
+            ("swingState", self.swing_state.value),
+            ("mode", self.mode.value)
+        ])
         return status
     
     def get_param_string(self) -> str:
-        param = "tempRange:({},{})".format(self.__temp_range[0], self.__temp_range[1])
+        param = "tempRange:({},{})".format(self.temp_range[0], self.temp_range[1])
         return param
     
     def set_from_param_string(self, status_string: str) -> str:
@@ -134,9 +135,27 @@ class AirConditioner(Device):
             params = con.split(":")
             config_dict[params[0]] = params[1]
         try:
-            self.__current_temp = int(config_dict["temperature"])
-            self.__fan_speed = int(config_dict["fanSpeed"])
-            self.__swing_state = config_dict["swingState"]
-            self.__mode = config_dict["mode"]
+            if config_dict["power"] == PowerStatus.OFF.value:
+                self.power_off()
+            else:
+                self.power_on()
+            self.current_temp = int(config_dict["temperature"])
+            fs = {
+                "LOW": ACFanSpeed.LOW,
+                "MID": ACFanSpeed.MID,
+                "HIGH": ACFanSpeed.HIGH
+            }
+            self.fan_speed = fs.get(config_dict["fanSpeed"])
+            ss = {
+                "OFF": ACSwingState.OFF,
+                "ON": ACSwingState.ON,
+            }
+            self.swing_state = ss.get(config_dict["swingState"])
+            ms = {
+                "COOL": ACMode.COOL,
+                "DRY": ACMode.DRY,
+                "FAN": ACMode.FAN
+            }
+            self.mode = ms.get(config_dict["mode"])
         except Exception:
             return "Failed to set status"

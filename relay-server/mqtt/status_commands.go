@@ -13,10 +13,10 @@ import (
 func SetDeviceStatusAck(client MQTT.Client, message MQTT.Message) error {
 	// first unsubscribe from the topic
 	client.Unsubscribe(message.Topic())
-	var status string = strings.Split(string(message.Payload()), "/")[1]
+	var status, id string = strings.Split(string(message.Payload()), "/")[1], strings.Split(string(message.Payload()), "/")[0]
 
 	if status == "FAILED" {
-		return fmt.Errorf("FAILED status from device command")
+		return fmt.Errorf("FAILED status from device command id: %s", id)
 	}
 	return nil
 }
@@ -46,7 +46,11 @@ func SetScene(sceneId int64) error {
 			CONFIG.GetDeviceComTopic(config.DeviceId),
 			byte(CONFIG.MQTT_QOS),
 			false,
-			config.DeviceConfig,
+			fmt.Sprintf(
+				"%s status %s",
+				config.DeviceId,
+				config.DeviceConfig,
+			),
 		)
 	}
 

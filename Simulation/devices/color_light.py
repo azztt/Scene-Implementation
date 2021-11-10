@@ -1,17 +1,17 @@
-from typing import Any, Dict, Tuple, overload
+from typing import Any, Dict, OrderedDict, Tuple
 from .light import Light
-from utilities import DeviceType
+from utilities import DeviceType, PowerStatus
 from utilities import is_color_valid
 
 class ColorLight(Light):
     def __init__(self, name: str, id: str,
-                color: Tuple[int, int, int] = (255, 255, 255),
-                brightness_levels: int = 5) -> None:
+                brightness_levels: int = 5,
+                color: Tuple[int, int, int] = (255, 255, 255)) -> None:
         super().__init__(name, id, brightness_levels, DeviceType.COL_LIGHT)
         if is_color_valid(color):
-            self.__color = color
+            self.color = color
         else:
-            self.__color = (255, 255, 255)
+            self.color = (255, 255, 255)
     
     def error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -27,7 +27,7 @@ class ColorLight(Light):
         """
         try:
             if is_color_valid(color):
-                self.__color = color
+                self.color = color
             else:
                 errmsg = "Invalid color"
                 raise ValueError(errmsg)
@@ -45,23 +45,24 @@ class ColorLight(Light):
         """
         Returns the current color of the light
         """
-        return self.__color
+        return self.color
 
-    def get_status_string(self) -> Dict[str, Any]:
-        status = {
+    def get_status_string(self) -> OrderedDict[str, Any]:
+        status = OrderedDict([
             # "id": self.get_id(),
             # "type": "CLIGHT",
-            "brightness": self.get_current_brightness(),
-            "color": "({},{},{})".format(
-                self.__color[0],
-                self.__color[1],
-                self.__color[2]
-            )
-        }
+            ("power", self.get_power_status().value),
+            ("brightness", self.get_current_brightness()),
+            ("color", "({},{},{})".format(
+                self.color[0],
+                self.color[1],
+                self.color[2]
+            ))
+        ])
         return status
     
     def get_param_string(self) -> str:
-        param = "brightLevels:{}".format(self.__brightness_levels)
+        param = "brightLevels:{}".format(self.brightness_levels)
         return param
     
     def set_from_param_string(self, status_string: str) -> str:
@@ -71,6 +72,10 @@ class ColorLight(Light):
             params = con.split(":")
             config_dict[params[0]] = params[1]
         try:
+            if config_dict["power"] == PowerStatus.OFF.value:
+                self.power_off()
+            else:
+                self.power_on()
             self.set_brightness(int(config_dict["brightness"]))
             colors = config_dict["color"]
             colors = colors[1:-1]

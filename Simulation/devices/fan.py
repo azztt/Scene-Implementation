@@ -1,5 +1,5 @@
 from types import FunctionType
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, OrderedDict
 from base_classes import Device
 from utilities import PowerStatus, DeviceType
 from utilities import FanOp
@@ -7,8 +7,8 @@ from utilities import FanOp
 class Fan(Device):
     def __init__(self, name: str, id: str, speed_levels: int = 5) -> None:
         super().__init__(name, id, DeviceType.FAN)
-        self.__speed_levels = speed_levels
-        self.__current_speed_level = 1
+        self.speed_levels = speed_levels
+        self.current_speed_level = 1
     
     def error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -24,12 +24,12 @@ class Fan(Device):
         Returns `None` on success, else an error message.
         """
         try:
-            if level <= self.__speed_levels and level >0:
+            if level <= self.speed_levels and level >0:
                 if self.get_power_status() == PowerStatus.OFF:
                     err = self.power_on()
                     if err:
                         raise RuntimeError(err)
-                self.__current_speed_level = level
+                self.current_speed_level = level
             else:
                 errmsg = "Speed level beyond limit"
                 raise ValueError(errmsg)
@@ -47,18 +47,19 @@ class Fan(Device):
         """
         Returns the current speed level of the fan
         """
-        return self.__current_speed_level
+        return self.current_speed_level
     
-    def get_status_string(self) -> Dict[str, Any]:
-        status = {
+    def get_status_string(self) -> OrderedDict[str, Any]:
+        status = OrderedDict([
             # "id": self.get_id(),
             # "type": "FAN",
-            "speed": self.__current_speed_level
-        }
+            ("power", self.get_power_status().value),
+            ("speed", self.current_speed_level)
+        ])
         return status
     
     def get_param_string(self) -> str:
-        param = "speedLevels:{}".format(self.__speed_levels)
+        param = "speedLevels:{}".format(self.speed_levels)
         return param
     
     def set_from_param_string(self, status_string: str) -> str:
@@ -68,6 +69,10 @@ class Fan(Device):
             params = con.split(":")
             config_dict[params[0]] = params[1]
         try:
-            self.__current_speed_level = int(config_dict["speed"])
+            if config_dict["power"] == PowerStatus.OFF.value:
+                self.power_off()
+            else:
+                self.power_on()
+            self.current_speed_level = int(config_dict["speed"])
         except Exception:
             return "Failed to set status"

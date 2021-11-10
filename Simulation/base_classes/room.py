@@ -9,7 +9,7 @@ from .entity import Entity
 class Room(Entity):
     def __init__(self, name: str, id: str) -> None:
         super().__init__(name, id)
-        self.__controllers: List[Controller] = []
+        self.room_controllers: List[Controller] = []
     
     def error(self, errmsg: str, prefix: str = "") -> None:
         """
@@ -27,7 +27,7 @@ class Room(Entity):
             err = controller.place_in_room(self)
             if err:
                 raise RuntimeError(err)
-            self.__controllers.append(controller)
+            self.room_controllers.append(controller)
         except RuntimeError as err:
             errmsg = "Could not add controller to the room"
             self.error(err)
@@ -47,7 +47,7 @@ class Room(Entity):
             err = controller.remove_from_room(self)
             if err:
                 raise RuntimeError(err)
-            self.__controllers.append(controller)
+            self.room_controllers.append(controller)
         except RuntimeError as err:
             errmsg = "Could not add controller to the room"
             self.error(err)
@@ -55,15 +55,16 @@ class Room(Entity):
         else:
             return None
     
-    def __get_device_controller(self, type: Literal) -> Controller:
+    def get_device_controller(self, type: Literal) -> Controller:
         """
         Checks and returns the controller of device type `type`\n
         is present in the room, else returns None.
         """
-        for controller in self.__controllers:
+        # if len(self.room_controllers) == 0:
+        #     return None
+        for controller in self.room_controllers:
             if controller.get_device_type() == type:
                 return controller
-        
         return None
 
     def add_device(self, device: Device) -> str:
@@ -72,7 +73,7 @@ class Room(Entity):
         Returns `None` on success, else error message.
         """
         try:
-            controller = self.__get_device_controller(device.get_device_type())
+            controller = self.get_device_controller(device.get_device_type())
             if not controller:
                 err = "No controller of this type present. "
                 err += "First, add a controller of this type to the room."
@@ -80,14 +81,17 @@ class Room(Entity):
             err = device.place_in_room(self)
             if err:
                 raise RuntimeError(err)
-            controller.add_device(device)
+            err = controller.add_device(device)
+            if err:
+                raise RuntimeError(err)
         except RuntimeError as err:
-            if err[:13] == "No controller":
+            if "No controller" in str(err):
                 return Error.NO_CONT.value
             errmsg = "Could not add device to the room"
             self.error(err)
             return errmsg
         else:
+            print("successfully added device")
             return None
     
     def remove_device_by_id_type(self, device_id: str, type: Literal) -> str:
@@ -97,7 +101,7 @@ class Room(Entity):
         Returns `None` on success, else error message.
         """
         try:
-            controller = self.__get_device_controller(type)
+            controller = self.get_device_controller(type)
             if not controller:
                 err = "No controller of this type present."
                 raise RuntimeError(err)
@@ -123,12 +127,12 @@ class Room(Entity):
         Returns `None` on success, else an error message.
         """
         try:
-            for controller in self.__controllers:
+            for controller in self.room_controllers:
                 err = controller.remove_from_room()
                 if err:
                     raise RuntimeError(err)
             
-            self.__controllers = []
+            self.room_controllers = []
         except RuntimeError as err:
             errmsg = "Could not remove all devices from the room."
             self.error(err)

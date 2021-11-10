@@ -1,6 +1,8 @@
 package server
 
 import (
+	"fmt"
+
 	DB "github.com/azztt/Scene-Implementation/database"
 	MODELS "github.com/azztt/Scene-Implementation/models"
 	MQTT "github.com/azztt/Scene-Implementation/mqtt"
@@ -26,6 +28,8 @@ func sendDeviceStatus(conn *websocket.Conn, statusChannel chan map[string]interf
 	for {
 		// on getting updated device status
 		deviceStatuses := <-statusChannel
+
+		fmt.Printf("got device status:\n%v\n", deviceStatuses)
 		// send updated data to frontend
 		writeResponse(conn, deviceStatuses)
 	}
@@ -82,7 +86,7 @@ func getEverything(conn *websocket.Conn, req string) {
 
 	response = map[string]interface{}{
 		"res":     req,
-		"message": "DEVICE_STATUS",
+		"message": "SUCCESS",
 		"data":    data,
 	}
 	// }
@@ -93,7 +97,8 @@ func createScene(conn *websocket.Conn, req string, body map[string]interface{}) 
 	var newSceneId int64
 	var err error
 	var newSceneName = body["name"].(string)
-	var deviceConfigs []map[string]interface{} = body["deviceConfigs"].([]map[string]interface{})
+	fmt.Printf("new scene request body configs:\n%v\n", body["deviceConfigs"])
+	var deviceConfigs []interface{} = body["deviceConfigs"].([]interface{})
 	// create new scene in db
 	newSceneId, err = DB.InsertNewScene(MODELS.Scene{
 		Name: newSceneName,
@@ -115,9 +120,9 @@ func createScene(conn *websocket.Conn, req string, body map[string]interface{}) 
 	var newConfigs []MODELS.Config = make([]MODELS.Config, 0, 10)
 	for _, deviceConfig := range deviceConfigs {
 		config := MODELS.Config{
-			DeviceId:     deviceConfig["deviceId"].(string),
+			DeviceId:     deviceConfig.(map[string]interface{})["deviceId"].(string),
 			SceneId:      newSceneId,
-			DeviceConfig: deviceConfig["config"].(string),
+			DeviceConfig: deviceConfig.(map[string]interface{})["config"].(string),
 		}
 		newConfigs = append(newConfigs, config)
 	}
@@ -219,9 +224,17 @@ func createDevice(conn *websocket.Conn, req string, body map[string]interface{})
 	var device MODELS.Device
 	var err error
 
+	// var deviceOb = map[string]interface{}{
+	// 	"roomId":     deviceParams["roomId"],
+	// 	"name":       deviceParams["name"],
+	// 	"parameters": deviceParams["parameters"],
+	// 	"type":       deviceParams["type"],
+	// }
+
 	device, err = MQTT.NewDevice(deviceParams)
 
 	if err != nil {
+		fmt.Printf("Error: %v", err)
 		writeErrorResponse(conn, req, err)
 	}
 	response := map[string]interface{}{
@@ -238,7 +251,7 @@ func deleteDevice(conn *websocket.Conn, req string, body map[string]interface{})
 	delDeviceId := body["deviceId"].(string)
 
 	// deleting from simulation
-	err := MQTT.RemoveRoom(delDeviceId)
+	err := MQTT.RemoveDevice(delDeviceId)
 	if err != nil {
 		writeErrorResponse(conn, req, err)
 		return
@@ -247,12 +260,15 @@ func deleteDevice(conn *websocket.Conn, req string, body map[string]interface{})
 	response := map[string]interface{}{
 		"res":     req,
 		"message": "SUCCESS",
+		"data": map[string]interface{}{
+			"deviceId": delDeviceId,
+		},
 	}
 	writeResponse(conn, response)
 }
 
 func setScene(conn *websocket.Conn, req string, body map[string]interface{}) {
-	sceneId := body["sceneId"].(int64)
+	sceneId := int64(body["sceneId"].(float64))
 	err := MQTT.SetScene(sceneId)
 	if err != nil {
 		writeErrorResponse(conn, req, err)

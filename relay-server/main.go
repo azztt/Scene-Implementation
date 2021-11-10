@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	DB "github.com/azztt/Scene-Implementation/database"
 	MQTT "github.com/azztt/Scene-Implementation/mqtt"
 	server "github.com/azztt/Scene-Implementation/server"
@@ -11,6 +14,8 @@ import (
 // main function, execution starts here
 func main() {
 	var statusChannel chan map[string]interface{} = make(chan map[string]interface{})
+
+	go http.ListenAndServe("0.0.0.0:6060", nil)
 
 	// start database connection
 	defer DB.DisconnectDB()

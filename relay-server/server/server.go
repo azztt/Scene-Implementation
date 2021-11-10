@@ -1,9 +1,9 @@
 package server
 
 import (
-	"net/http"
-
 	"github.com/labstack/echo/v4"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 // func setupRoutes(statusChannel chan map[string]interface{}) {
@@ -25,6 +25,9 @@ func rootHandler(c echo.Context) error {
 func StartServer(statusChannel chan map[string]interface{}) {
 	// setupRoutes(statusChannel)
 	server := echo.New()
+
+	// server.Use(middleware.Logger())
+
 	server.GET("/", rootHandler)
 	server.GET("/ws", func(c echo.Context) error {
 		return serveWs(c, statusChannel)

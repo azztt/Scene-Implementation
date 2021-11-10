@@ -11,7 +11,7 @@ import paho.mqtt.client as mqtt
 if TYPE_CHECKING:
     from base_classes import Controller
 from time import perf_counter
-from simulation.sim_constants import DEVICE_STATUS
+from .constants import DEVICE_STATUS
 import json
 
 class MQTTConnection:
@@ -22,42 +22,42 @@ class MQTTConnection:
                 on_unsubscribe: FunctionType,
                 on_message: FunctionType,
                 will_payload: str) -> None:
-        self.__client_id = id
-        self.__topic = topic
-        self.__client = mqtt.Client(
-            client_id=self.__client_id,
+        self.client_id = id
+        self.topic = topic
+        self.client = mqtt.Client(
+            client_id=self.client_id,
             clean_session=False,
         )
-        self.__on_unsubscribe = on_unsubscribe
-        self.__on_subscribe = on_subscribe
-        self.__on_message = on_message
-        self.__will_payload = will_payload
+        self.on_unsubscribe = on_unsubscribe
+        self.on_subscribe = on_subscribe
+        self.on_message = on_message
+        self.will_payload = will_payload
     
-    def __on_connect(self,
+    def on_connect(self,
                 client: mqtt.Client,
                 userdata: Any,
                 flags: Any,
                 rc: Any) -> None:
         print("Controller {} connected with result code {}".format(
-            self.__client_id,
+            self.client_id,
             rc
         ))
         (res, _) = client.subscribe(
-            topic=self.__topic,
+            topic=self.topic,
             qos=MQTT_QOS
         )
         while res > 0:
             (res, _) = client.subscribe(
-                topic=self.__topic,
+                topic=self.topic,
                 qos=MQTT_QOS
             )
     
-    def __on_disconnect(self,
+    def on_disconnect(self,
                         client: mqtt.Client,
                         userdata: Any,
                         rc: Any) -> None:
         print("Controller {} disconnected with result code {}".format(
-            self.__client_id,
+            self.client_id,
             rc
         ))
     
@@ -65,7 +65,7 @@ class MQTTConnection:
         """
         Returns the client object of this connection.
         """
-        return self.__client
+        return self.client
     
     def start(self) -> str:
         """
@@ -74,20 +74,20 @@ class MQTTConnection:
         returns an error message.
         """
         try:
-            self.__client.on_connect = self.__on_connect
-            self.__client.on_disconnect = self.__on_disconnect
-            self.__client.on_message = self.__on_message
-            self.__client.on_subscribe = self.__on_subscribe
-            self.__client.on_unsubscribe = self.__on_unsubscribe
-            self.__client.will_set(
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
+            self.client.on_subscribe = self.on_subscribe
+            self.client.on_unsubscribe = self.on_unsubscribe
+            self.client.will_set(
                 topic=MQTT_WILL_TOPIC,
-                payload=self.__will_payload,
+                payload=self.will_payload,
             )
-            self.__client.connect(
+            self.client.connect(
                 host=MQTT_SERVER,
                 port=MQTT_PORT
             )
-            self.__client.loop_start()
+            self.client.loop_start()
         except RuntimeError:
             errmsg = "Could not start mqtt connection"
             return errmsg
@@ -101,10 +101,10 @@ class MQTTConnection:
         returns an error message.
         """
         try:
-            if self.__client.is_connected():
-                self.__client.unsubscribe(self.__topic)
-                self.__client.loop_stop()
-                self.__client.disconnect()
+            if self.client.is_connected():
+                self.client.unsubscribe(self.topic)
+                self.client.loop_stop()
+                self.client.disconnect()
         except RuntimeError:
             errmsg = "Could not disconnect mqtt connection"
             return errmsg
@@ -116,47 +116,49 @@ class IDClass:
     Unique ID generator for different entitites
     """
     def __init__(self) -> None:
-        self.__next_id = set()
+        self.next_id = set()
     
     def new_id(self) -> str:
         """
         Returns new unique id
         """
         id = str(uuid4())
-        while id in self.__next_id:
+        while id in self.next_id:
             id = str(uuid4())
-        self.__next_id.add(id)
+        self.next_id.add(id)
         return id
 
 class StatusThread(Thread):
     def __init__(self, client: mqtt.Client, controller: Controller) -> None:
-        self.__client = client
-        self.__controller = controller
-        self.__on = False
+        super().__init__()
+        self.client = client
+        self.controller = controller
+        self.on = False
     
     def stop(self) -> None:
-        self.__on = False
+        self.on = False
+        self.client = None
     
     def run(self) -> None:
-        self.__on = True
+        self.on = True
 
-        while(self.__on):
+        while(self.on):
             t1 = perf_counter()
 
-            statuses: List[Dict[str, Any]] = self.__controller.get_all_device_status()
+            statuses: List[Dict[str, Any]] = self.controller.get_all_device_status()
 
             deviceStatus = {
                 "statuses": statuses
             }
 
             # for status in statuses:
-            #     self.__client.publish(
+            #     self.client.publish(
             #         topic="/".join([DEVICE_STATUS, status["type"]]),
             #         payload=json.dumps(status),
             #         qos=1
             #     )
             
-            self.__client.publish(
+            self.client.publish(
                 topic=DEVICE_STATUS,
                 payload=json.dumps(deviceStatus),
                 qos=1

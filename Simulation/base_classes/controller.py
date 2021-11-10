@@ -8,8 +8,8 @@ from utilities import PowerStatus, OPStatus
 class Controller(Device):
     def __init__(self, name: str, id: str, type: Literal) -> None:
         super().__init__(name, id, type)
-        self.__room: Room = None
-        self.__devices: List[Device] = []
+        self.room: Room = None
+        self.devices: List[Device] = []
     
     def error(self, errmsg: str, prefix) -> None:
         """
@@ -18,7 +18,7 @@ class Controller(Device):
         prefix = prefix + "Controller->"
         print("{}Controller {} in Room {}: {}".format(
             prefix, self.name, 
-            self.__room.get_name() if self.__room else "None",
+            self.room.get_name() if self.room else "None",
             errmsg
         ))
     
@@ -36,7 +36,7 @@ class Controller(Device):
         Return `None` on success else and error message.
         """
         try:
-            self.__devices.append(device)
+            self.devices.append(device)
         except RuntimeError as err:
             errmsg = "Could not add device to the controller"
             self.error(err)
@@ -52,12 +52,12 @@ class Controller(Device):
         """
         try:
             done = False
-            for device in self.__devices:
+            for device in self.devices:
                 if device.get_id() == device_id:
                     err = device.remove_from_room()
                     if err:
                         raise RuntimeError(err)
-                    self.__devices.remove(device)
+                    self.devices.remove(device)
                     done = True
                     break
             
@@ -79,7 +79,7 @@ class Controller(Device):
         error message.
         """
         try:
-            self.__room = room
+            self.room = room
         except RuntimeError as err:
             errmsg = "Could not add controller to room"
             self.error(err)
@@ -97,15 +97,15 @@ class Controller(Device):
             err = self.stop()
             if err:
                 raise RuntimeError(err)
-            for device in self.__devices:
+            for device in self.devices:
                 err = device.remove_from_room()
                 if err:
                     raise RuntimeError(err)
-            self.__devices = []
+            self.devices = []
             err = self.power_off()
             if err:
                 raise RuntimeError(err)
-            self.__room = None
+            self.room = None
         except RuntimeError as err:
             errmsg = "Could not remove from room"
             self.error(err)
@@ -134,7 +134,7 @@ class Controller(Device):
         Returns the id of the room in which\n
         this controller is present
         """
-        return self.__room.get_id()
+        return self.room.get_id()
     
     def get_device_by_id(self, device_id: str) -> Device:
         """
@@ -143,7 +143,7 @@ class Controller(Device):
         device object if found, else returns `None`
         """
         try:
-            for device in self.__devices:
+            for device in self.devices:
                 if device.get_id() == device_id:
                     return device
             err = "Device not found"
@@ -160,7 +160,7 @@ class Controller(Device):
         Returns the ids of all devices of this controller\n
         concatenated with a comma separator.
         """
-        device_ids = [device.get_id() for device in self.__devices]
+        device_ids = [device.get_id() for device in self.devices]
         return ",".join(device_ids)
     
     def set_device_power(self, device_id: str, state: Literal) -> Literal:
@@ -193,7 +193,7 @@ class Controller(Device):
         """
         statuses: List[Dict[str, Any]] = []
 
-        for device in self.__devices:
+        for device in self.devices:
             statuses.append(
                 {
                     "id": device.get_id(),

@@ -3,11 +3,11 @@ from enum import Enum, unique
 @unique
 class DeviceType(Enum):
     CONT = "controller"
-    AC = "ac"
-    COL_LIGHT = "clight"
-    DOOR_LOCK = "door_lock"
-    FAN = "fan"
-    LIGHT = "light"
+    AC = "AC"
+    COL_LIGHT = "CLIGHT"
+    DOOR_LOCK = "DLOCK"
+    FAN = "FAN"
+    LIGHT = "LIGHT"
 
 @unique
 class PowerStatus(Enum):
@@ -39,7 +39,7 @@ class ACMode(Enum):
 @unique
 class OPStatus(Enum):
     SUCCESS = "ok"
-    FAILED = "failed"
+    FAILED = "FAILED"
 
 # Enums for specific device operations
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -35,9 +36,11 @@ func reader(conn *websocket.Conn) {
 		// 	log.Println(err)
 		// 	return
 		// }
-		var message map[string]interface{} = make(map[string]interface{})
+		var message map[string]interface{}
 
-		err := conn.ReadJSON(&message)
+		// err := conn.ReadJSON(message)
+		_, p, err := conn.ReadMessage()
+
 		// print out that message for clarity
 		// fmt.Println(string(p))
 
@@ -45,10 +48,13 @@ func reader(conn *websocket.Conn) {
 		// err = json.Unmarshal(p, &message)
 
 		if err != nil {
-			fmt.Println("error in reader: ", err)
-			fmt.Println("error parsing message, ignoring and waiting for next")
+			// fmt.Println("error in reader: ", err)
+			// fmt.Println("error parsing message, ignoring and waiting for next")
 			continue
 		}
+
+		json.Unmarshal(p, &message)
+		fmt.Printf("message:\n%v\n", message)
 
 		var request string = message["req"].(string)
 		var body map[string]interface{}

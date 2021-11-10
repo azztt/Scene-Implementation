@@ -139,7 +139,7 @@ func NewScene(sceneInfo map[string]interface{}) {
 			]
 		}
 	*/
-	var deviceConfigs []map[string]interface{} = sceneInfo["deviceConfigs"].([]map[string]interface{})
+	var deviceConfigs []interface{} = sceneInfo["deviceConfigs"].([]interface{})
 	// adding a new scene first in db
 	newSceneId, err := DB.InsertNewScene(MODELS.Scene{
 		Name: sceneInfo["name"].(string),
@@ -165,12 +165,20 @@ func OnNewDeviceAck(client MQTT.Client, message MQTT.Message) (MODELS.Device, er
 
 	// var done bool = true
 	var msg map[string]interface{}
-	err := json.Unmarshal(message.Payload(), &msg)
+	var err error
+	if string(message.Payload()) == "FAILED" {
+		err = fmt.Errorf("could not create device in simulation")
+		return MODELS.Device{}, err
+	}
+	err = json.Unmarshal(message.Payload(), &msg)
 
 	if err != nil {
 		// done = false
+		fmt.Printf("error in unmarhsalling: %v\n", err)
 		return MODELS.Device{}, err
 	}
+
+	fmt.Printf("new device ack msg:\n%v\n", msg)
 
 	// if done {
 	// insert device in the database
@@ -180,7 +188,7 @@ func OnNewDeviceAck(client MQTT.Client, message MQTT.Message) (MODELS.Device, er
 		RoomId:     msg["roomId"].(string),
 		Type:       msg["type"].(string),
 		Parameters: msg["parameters"].(string),
-		Status:     msg["status"].(string),
+		Status:     structToStatusString(msg["status"].(map[string]interface{})),
 	}
 	err = DB.InsertNewDevice(device)
 	if err != nil {
@@ -190,6 +198,7 @@ func OnNewDeviceAck(client MQTT.Client, message MQTT.Message) (MODELS.Device, er
 
 	// added to list of online devices
 	// onlineDevices[device.ID] = mem
+	fmt.Printf("device added to database:\n%v\n", device)
 	return device, nil
 	// }
 }

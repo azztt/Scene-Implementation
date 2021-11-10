@@ -34,8 +34,7 @@ func GetConfigsBySceneID(sceneId int64) ([]MODELS.Config, error) {
 	var configs []MODELS.Config = make([]MODELS.Config, 0, 10)
 
 	rows, err := db.Query(
-		fmt.Sprintf("SELECT (deviceId, deviceConfig) FROM %s WHERE sceneId = ?", CONFIG_TABLE),
-		CONFIG_TABLE,
+		fmt.Sprintf("SELECT deviceId, deviceConfig FROM %s WHERE sceneId = ?", CONFIG_TABLE),
 		sceneId,
 	)
 
@@ -51,7 +50,7 @@ func GetConfigsBySceneID(sceneId int64) ([]MODELS.Config, error) {
 			&config.DeviceConfig,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("GetAllDevices: %v", err)
+			return nil, fmt.Errorf("GetConfigsBySceneID: %v", err)
 		}
 		configs = append(configs, config)
 	}
@@ -60,12 +59,12 @@ func GetConfigsBySceneID(sceneId int64) ([]MODELS.Config, error) {
 }
 
 // insert new configs
-func InsertNewConfigs(sceneId int64, configs []map[string]interface{}) error {
+func InsertNewConfigs(sceneId int64, configs []interface{}) error {
 	var sqlCmd string = fmt.Sprintf("INSERT INTO %s (deviceId, sceneId, deviceConfig) VALUES ", CONFIG_TABLE)
 	var vals []interface{}
 	for _, config := range configs {
 		sqlCmd += "(?, ?, ?),"
-		vals = append(vals, config["deviceId"], config["config"])
+		vals = append(vals, config.(map[string]interface{})["deviceId"].(string), sceneId, config.(map[string]interface{})["config"].(string))
 	}
 	sqlCmd = sqlCmd[0 : len(sqlCmd)-1]
 	cmd, _ := db.Prepare(sqlCmd)

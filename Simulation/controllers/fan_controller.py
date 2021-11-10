@@ -12,9 +12,9 @@ import paho.mqtt.client as mqtt
 class FanController(Controller):
     def __init__(self, name: str, id: str) -> None:
         super().__init__(name, id, DeviceType.FAN)
-        self.__running = False
-        self.__client: MQTTConnection = None
-        self.__status_thread: StatusThread = None
+        self.running = False
+        self.client: MQTTConnection = None
+        self.status_thread: StatusThread = None
     
     def error(self, errmsg: str, fan: Fan = None) -> None:
         """
@@ -69,7 +69,7 @@ class FanController(Controller):
             return OPStatus.SUCCESS
     
     
-    def __on_message(self,
+    def on_message(self,
                     client: mqtt.Client,
                     userdata: Any,
                     msg: mqtt.MQTTMessage) -> None:
@@ -108,7 +108,7 @@ class FanController(Controller):
                     qos=1
                 )
     
-    def __on_subscribe(self,
+    def on_subscribe(self,
                     client: mqtt.Client,
                     userdata: Any,
                     mid: Any,
@@ -119,7 +119,7 @@ class FanController(Controller):
             qos=2
         )
     
-    def __on_unsubscribe(self,
+    def on_unsubscribe(self,
                     client: mqtt.Client,
                     userdata: Any,
                     mid: Any,
@@ -131,34 +131,36 @@ class FanController(Controller):
         )
 
     def start(self) -> None:
-        if not self.__running:
-            self.__client = MQTTConnection(
+        if not self.running:
+            self.client = MQTTConnection(
                 id=self.get_id(),
                 topic=get_mqtt_com_topic(self),
-                on_message=self.__on_message,
-                on_subscribe=self.__on_subscribe,
-                on_unsubscribe=self.__on_unsubscribe,
+                on_message=self.on_message,
+                on_subscribe=self.on_subscribe,
+                on_unsubscribe=self.on_unsubscribe,
                 will_payload=self.get_all_device_ids()
             )
-            errmsg = self.__client.start()
+            errmsg = self.client.start()
             if errmsg:
                 self.error(errmsg)
             else:
-                self.__running = True
-            self.__status_thread = StatusThread(
-                client=self.__client.get_client(),
+                self.running = True
+            self.status_thread = StatusThread(
+                client=self.client.get_client(),
                 controller=self
             )
-            self.__status_thread.start()
+            self.status_thread.start()
     
     def stop(self) -> None:
-        if self.__running:
-            self.__status_thread.stop()
-            errmsg = self.__client.stop()
+        if self.running:
+            self.status_thread.stop()
+            errmsg = self.client.stop()
             if errmsg:
                 self.error(errmsg)
             else:
-                self.__running = False
+                self.running = False
+                self.client = None
+                self.status_thread = None
     
     def is_running(self) -> bool:
         """
@@ -166,4 +168,4 @@ class FanController(Controller):
         in running state i.e., connected to the broker,\n
         else returns `False`
         """
-        return self.__running
+        return self.running

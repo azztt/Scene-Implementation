@@ -4,3 +4,5 @@ MQTT_QOS = 1
 MQTT_WILL_TOPIC = "simulation/will"
 
 STATUS_CRON_TIME = 5
+
+DEVICE_STATUS = "simulation/device_status"

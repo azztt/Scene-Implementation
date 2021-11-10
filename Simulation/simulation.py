@@ -9,6 +9,14 @@ from typing import Any, Dict, Tuple
 # importing os utilities
 import json 
 
+# adding to path
+# import sys
+# sys.path.append("../../Simulation")
+# sys.path.append("../base_classes")
+# sys.path.append("../devices")
+# sys.path.append("../controllers")
+# sys.path.append("../utilities")
+
 # importing all devices
 from devices import AirConditioner
 from devices import ColorLight
@@ -24,7 +32,7 @@ from controllers import FanController
 from controllers import LightController
 
 # importing room
-from base_classes import Controller, Device, Room
+from base_classes import Controller, Device, Room, room
 
 # importing utilities
 import utilities as utils
@@ -84,17 +92,28 @@ SIM_ID = id_gen.new_id()
 # methods to load and write latest configuration files
 def load_configuration() -> str:
     global rooms, devices, controllers
-    simulation = None
+    # simulation = None
 
     try:
-        with open(CONFIG, 'rb') as config_file:
-            simulation = pickle.load(config_file)
+        with open(ROOM_CONFIG, 'rb') as config_file:
+            rooms = pickle.load(config_file)
+        with open(DEV_CONFIG, 'rb') as config_file:
+            devices = pickle.load(config_file)
+        with open(CONT_CONFIG, 'rb') as config_file:
+            controllers = pickle.load(config_file)
     except OSError:
         return "No previous configuration"
-    if simulation:
-        rooms = simulation["rooms"]
-        devices = simulation["devices"]
-        controllers = simulation["controllers"]
+    if rooms and devices and controllers:
+        # rooms = simulation["rooms"]
+        # devices = simulation["devices"]
+        # controllers = simulation["controllers"]
+        print("loaded configuration:")
+        print("rooms-")
+        print(rooms)
+        print("controllers-")
+        print(controllers)
+        print("devices-")
+        print(devices)
     return None
 
 def save_configuration() -> str:
@@ -104,8 +123,12 @@ def save_configuration() -> str:
     simulation["devices"] = devices
     simulation["controllers"] = controllers
     try:
-        with open(CONFIG, 'wb') as config_file:
-            simulation = pickle.dump(simulation, config_file)
+        with open(ROOM_CONFIG, 'wb') as config_file:
+            pickle.dump(rooms, config_file)
+        with open(DEV_CONFIG, 'wb') as config_file:
+            pickle.dump(devices, config_file)
+        with open(CONT_CONFIG, 'wb') as config_file:
+            pickle.dump(controllers, config_file)
     except OSError:
         return "Unknown error"
     else:
@@ -135,6 +158,8 @@ def on_subscribe(
 
 # callback for new room
 def new_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+    global rooms, devices, controllers
+
     new_room_id = id_gen.new_id()
     msg = str(message.payload.decode('utf-8'))
     room_name = msg
@@ -145,6 +170,7 @@ def new_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> N
     )
 
     rooms[new_room_id] = new_room
+    print("rooms: {}".format(rooms))
     sim_acknowledge(
         client=client,
         topic=NEW_ROOM,
@@ -156,6 +182,8 @@ def new_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> N
 
 # callback for removing room
 def rem_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+    global rooms, devices, controllers
+
     room_id = str(message.payload.decode('utf-8'))
 
     room = rooms.get(room_id)
@@ -176,24 +204,33 @@ def rem_room(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> N
 
 # callback for new device
 def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+    global rooms, devices, controllers
+
     new_dev_id = id_gen.new_id()
     msg = str(message.payload.decode('utf-8'))
+    print(msg)
     msg = json.loads(msg)
+    print(msg)
     # msg = msg.split("/")
-    room_id = msg["room_id"]
+    room_id = msg["roomId"]
     room = rooms.get(room_id)
+    
     if not room:
+        print("room not found")
         sim_acknowledge(
             client=client,
             topic=NEW_DEVICE,
             status=utils.OPStatus.FAILED.value
         )
         return
+    
     device_type = msg["type"]
     device_name = msg["name"]
-
+    print(device_type)
+    print(device_name)
     ack_device = {
         "id": new_dev_id,
+        "roomId": room_id,
         "name": device_name,
         "type": device_type,
         "parameters": "",
@@ -201,14 +238,14 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
     }
 
     if device_type == utils.DeviceType.AC.value:
-        temp_range: str = msg["temp_range"]
+        temp_range: str = msg["tempRange"]
         temp_range = temp_range[1:-1]
         temp_lim = temp_range.split(",")
-        temp_range = tuple(list(map(int, temp_lim)))
+        temp_range_t = (int(temp_lim[0]), int(temp_lim[1]))
         new_ac = AirConditioner(
             name=device_name,
             id=new_dev_id,
-            temp_range=temp_range
+            temp_range=temp_range_t
         )
 
         ack_device["parameters"] = new_ac.get_param_string()
@@ -221,6 +258,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
                 name="Controller {}".format(len(controllers)+1),
                 id=new_cont_id
             )
+            ac_cont.start()
             controllers[new_cont_id] = ac_cont
             err = room.add_controller(ac_cont)
             if err:
@@ -255,7 +293,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
         #     color = color.split(",")
         #     color = tuple(list(map(int, color)))
         
-        b_levels = int(msg["b_levels"])
+        b_levels = int(msg["brightLevels"])
         new_clight = ColorLight(
             name=device_name,
             id=new_dev_id,
@@ -273,9 +311,11 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
                 name="Controller {}".format(len(controllers)+1),
                 id=new_cont_id
             )
+            clight_cont.start()
             controllers[new_cont_id] = clight_cont
             err = room.add_controller(clight_cont)
             if err:
+                print("error in adding controller")
                 sim_acknowledge(
                     client=client,
                     topic=NEW_DEVICE,
@@ -284,6 +324,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
                 return
             err = room.add_device(new_clight)
             if err:
+                print("error in adding device to room after new controller")
                 sim_acknowledge(
                     client=client,
                     topic=NEW_DEVICE,
@@ -316,6 +357,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
                 name="Controller {}".format(len(controllers)+1),
                 id=new_cont_id
             )
+            dlock_cont.start()
             controllers[new_cont_id] = dlock_cont
             err = room.add_controller(dlock_cont)
             if err:
@@ -344,7 +386,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
         devices[new_dev_id] = new_dlock
     
     elif device_type == utils.DeviceType.FAN.value:
-        speed_levels = int(msg["speed_levels"])
+        speed_levels = int(msg["speedLevels"])
         new_fan = Fan(
             name=device_name,
             id=new_dev_id,
@@ -361,6 +403,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
                 name="Controller {}".format(len(controllers)+1),
                 id=new_cont_id
             )
+            fan_cont.start()
             controllers[new_cont_id] = fan_cont
             err = room.add_controller(fan_cont)
             if err:
@@ -389,7 +432,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
         devices[new_dev_id] = new_fan
 
     elif device_type == utils.DeviceType.LIGHT.value:
-        b_levels = int(msg["b_levels"])
+        b_levels = int(msg["brihgtLevels"])
         new_light = Light(
             name=device_name,
             id=new_dev_id,
@@ -406,6 +449,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
                 name="Controller {}".format(len(controllers)+1),
                 id=new_cont_id
             )
+            light_cont.start()
             controllers[new_cont_id] = light_cont
             err = room.add_controller(light_cont)
             if err:
@@ -433,6 +477,7 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
         
         devices[new_dev_id] = new_light
 
+    print("device created successfully")
     sim_acknowledge(
         client=client,
         topic=NEW_DEVICE,
@@ -441,17 +486,20 @@ def new_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
 
 # callback for removing device
 def rem_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+    global rooms, devices, controllers
+
     dev_id = str(message.payload.decode('utf-8'))
     device = devices.get(dev_id, None)
     if not device:
         sim_acknowledge(
             client=client,
-            topic=NEW_DEVICE,
+            topic=REM_DEVICE,
             status=utils.OPStatus.FAILED.value
         )
         return
     
     room = device.get_room()
+    print("got deleting device room: {}".format(room))
     err = room.remove_device_by_id_type(
         device_id=dev_id,
         type=device.get_device_type()
@@ -459,20 +507,21 @@ def rem_device(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) ->
     if err:
         sim_acknowledge(
             client=client,
-            topic=NEW_DEVICE,
+            topic=REM_DEVICE,
             status=utils.OPStatus.FAILED.value
         )
         return
     else:
         sim_acknowledge(
             client=client,
-            topic=NEW_DEVICE,
+            topic=REM_DEVICE,
             status=dev_id
         )
 
 start_success = False
 # callback for starting the simulation
 def start_sim(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+    global rooms, devices, controllers
     global start_success
     if message.topic == START_SIM:
         client.unsubscribe(topic=START_SIM)
@@ -490,10 +539,12 @@ def start_sim(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> 
         start_success = True
 
         client.subscribe(topic=STOP_SIM)
+        print("simulation started")
 
 stop_success = False
 # callback for stopping the simulation
 def stop_sim(client: mqtt.Client, userdata: Any, message: mqtt.MQTTMessage) -> None:
+    global rooms, devices, controllers
     global stop_success
     if message.topic == STOP_SIM:
         client.unsubscribe(topic=STOP_SIM)
@@ -548,9 +599,12 @@ try:
     sim_client.subscribe(NEW_DEVICE, 1)
     sim_client.subscribe(REM_DEVICE, 1)
 
+    sim_client.will_set(DISC_TOPIC, None, 2)
+
 
     # start the loop of listening
-    sim_client.loop_start()
+    sim_client.loop_forever()
+    # print("started")
 
 except KeyboardInterrupt:
     # stop and disconnect the client from listening
@@ -558,7 +612,8 @@ except KeyboardInterrupt:
     sim_client.unsubscribe(REM_ROOM)
     sim_client.unsubscribe(NEW_DEVICE)
     sim_client.unsubscribe(REM_DEVICE)
-    sim_client.loop_stop()
+    sim_client.publish(DISC_TOPIC, None, 2)
+    # sim_client.loop_stop()
     sim_client.disconnect()
 
     # stop the controllers
@@ -568,3 +623,22 @@ except KeyboardInterrupt:
     # save configuration
     config = save_configuration()
     print("Simulation stopped after saving configuration")
+
+except Exception as e:
+    # stop and disconnect the client from listening
+    sim_client.unsubscribe(NEW_ROOM)
+    sim_client.unsubscribe(REM_ROOM)
+    sim_client.unsubscribe(NEW_DEVICE)
+    sim_client.unsubscribe(REM_DEVICE)
+    # sim_client.loop_stop()
+    sim_client.publish(DISC_TOPIC, None, 2)
+    sim_client.disconnect()
+
+    # stop the controllers
+    for (_, controller) in controllers.items():
+        err = controller.stop()
+    
+    # save configuration
+    config = save_configuration()
+    print("Simulation stopped after saving configuration")
+    print(e)
