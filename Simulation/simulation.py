@@ -621,8 +621,11 @@ except KeyboardInterrupt:
         err = controller.stop()
     
     # save configuration
-    config = save_configuration()
-    print("Simulation stopped after saving configuration")
+    if len(rooms)+len(controllers)+len(devices) > 0:
+        config = save_configuration()
+        print("Simulation stopped after saving configuration")
+    else:
+        print("Simulation stopped")
 
 except Exception as e:
     # stop and disconnect the client from listening
@@ -639,6 +642,9 @@ except Exception as e:
         err = controller.stop()
     
     # save configuration
-    config = save_configuration()
-    print("Simulation stopped after saving configuration")
+    if len(rooms)+len(controllers)+len(devices) > 0:
+        config = save_configuration()
+        print("Simulation stopped after saving configuration")
+    else:
+        print("Simulation stopped")
     print(e)

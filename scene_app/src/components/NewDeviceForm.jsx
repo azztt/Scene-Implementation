@@ -1,5 +1,5 @@
 import { Button, Dialog, DialogContent, DialogTitle, FormControlLabel, Grid, Radio, RadioGroup, TextField, Typography } from "@mui/material";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { withStyles } from "@mui/styles";
 import VerticalSpace from "./VerticalSpace";
 import * as deviceTypes from "../utils/deviceTypes";
@@ -22,8 +22,26 @@ const NewDeviceForm = ({open, onCloseHandler, roomId, submit, classes}) => {
         speedLevels: 4,
     }
     const [formState, setFormState] = useState({
-        ...origFormState
+        roomId: roomId,
+        name: "",
+        type: "",
+        minTemp: "16",
+        maxTemp: "32",
+        brightLevels: 4,
+        speedLevels: 4,
     });
+
+    useEffect(() => {
+        setFormState({
+            roomId: roomId,
+            name: "",
+            type: "",
+            minTemp: "16",
+            maxTemp: "32",
+            brightLevels: 4,
+            speedLevels: 4,
+        });
+    }, [roomId]);
 
     const onChangeHandler = (e) => {
         e.preventDefault();
